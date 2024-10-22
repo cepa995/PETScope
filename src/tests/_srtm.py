@@ -1,0 +1,77 @@
+import os
+
+from scripts.registration import ants_warp_image, pet_to_t1
+from scripts.utils import convert_4d_to_3d, compute_mean_volume, compute_4d_image, change_dtype
+from scripts.logger import logger
+from scripts.tests.data import data
+from scripts.dynamic_pet_wrapper.srtm import call_srtm
+from scripts.tests.utils import init_argparse
+
+
+if __name__ == "__main__":
+    parser = init_argparse()
+    args   = parser.parse_args()
+    # Step 0. Split 4D to 3D volumes
+    pet_3d_vol_dir = os.path.join(args.test_results_dir, "3d_volumes")
+    logger.info("Convert 4D PET image into list of 3D Volumes")
+    convert_4d_to_3d(
+        img_4d_path=data['PET4D'],
+        img_3d_dir=pet_3d_vol_dir,
+        orientation='RSA'
+    )
+    # Step 1. Compute PET 3D volume
+    logger.info("Computing Mean 3D Volume")
+    pet_3d_volume = os.path.join(args.test_results_dir, 'pet_3d.nii')
+    pet_4d_volume = os.path.join(args.test_results_dir, 'pet_4d_rsa.nii')
+    mean_3d_image = compute_mean_volume(pet_3d_vol_dir, pet_3d_volume)
+    pet_4d_rsa    = compute_4d_image(pet_3d_vol_dir, pet_4d_volume)
+    # Step 2. Register PET to T1
+    logger.info("Rigid Registration: PET -> T1 Space")
+    registration_dir = os.path.join(args.test_results_dir, "PET_TO_T1")
+    transform = pet_to_t1(
+        pet_3d_path=pet_3d_volume,
+        t1_3d_path=data['T13D'],
+        registration_dir=registration_dir,
+        output_filename_t1_pet_space='t1_pet_space.nii',
+        output_filename_pet_t1_space='pet_t1_space.nii',
+        type_of_transform='Rigid'
+    )
+    # Step 3. Move brain mask from T1 to PET
+    logger.info("Warping Brain Mask (T1) to PET Space")
+    brain_mask_pet_space = os.path.join(registration_dir, 'brain_mask_pet_space.nii')
+    ants_warp_image(
+        fixed_image_path=pet_3d_volume,
+        moving_image_path=data['BRAIN_MASK'],
+        transform_path=transform,
+        is_inverse=True,
+        interpolator='genericLabel',
+        output_path=brain_mask_pet_space
+    )
+    # Step 4. Move PET images from PET to T1
+    # logger.info("Warping 3D PET Volumes to T1 Space")
+    # pet_3d_vol_t1_dir = os.path.join(args.test_results_dir, '3d_volumes_t1_space')
+    # os.makedirs(pet_3d_vol_t1_dir, exist_ok=True)
+    # for pet_vol in os.listdir(pet_3d_vol_dir):
+    #     pet_vol_path = os.path.join(pet_3d_vol_dir, pet_vol)
+    #     ants_warp_image(
+    #         fixed_image_path=data['T13D'],
+    #         moving_image_path=pet_vol_path,
+    #         transform_path=transform,
+    #         output_path=os.path.join(pet_3d_vol_t1_dir, pet_vol)
+    #     )
+    #     change_dtype(
+    #         image_path=os.path.join(pet_3d_vol_t1_dir, pet_vol),
+    #         dtype='ushort',
+    #         output_path=os.path.join(pet_3d_vol_t1_dir, pet_vol)
+    #     )
+    # logger.info("Create PET 4D Image T1 Space")
+    # pet_4d_t1     = os.path.join(args.test_results_dir, 'pet_4d_t1_space.nii')
+    # pet_4d_t1_nii = compute_4d_image(pet_3d_vol_t1_dir, pet_4d_t1)
+    # # Step 4. Execute SRTM 
+    # srtm_dir = os.path.join(args.test_results_dir, 'SRTM_RESULTS')
+    # logger.info("Dynamic PET - Simplified Reference Tissue Model (SRTM) Analysis")
+    # call_srtm(
+    #     pet_4d_path=pet_4d_t1,
+    #     reference_mask_path=data['BRAIN_MASK'],
+    #     output_dir=srtm_dir
+    # )
