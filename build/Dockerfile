@@ -65,5 +65,16 @@ RUN wget https://github.com/UCL/PETPVC/releases/download/v1.2.4/PETPVC-1.2.4-Lin
     cp -r PETPVC-1.2.4/* /opt/ &&\
     rm -r PETPVC* 
 
+# Convert3D (C3D)
+RUN mkdir '/mnt/algo/tools' && \
+    cd '/mnt/algo/tools' && \
+    wget https://sourceforge.net/projects/c3d/files/c3d/Nightly/c3d-nightly-Linux-gcc64.tar.gz && \
+    tar -zxvf c3d-nightly-Linux-gcc64.tar.gz && \
+    mv c3d-1.4.2-Linux-gcc c3d-1.4.2 && \
+    rm -rf c3d-nightly-Linux-gcc64.tar.gz
+# Update the PATH environment variable to include the directory where the binary is located
+ENV PATH="/mnt/algo/tools/c3d-1.4.2/bin:${PATH}"
+# Ensure the binary has execution permissions
+RUN chmod +x /mnt/algo/tools/c3d-1.4.2/bin/c3d
 # Set the default command
 CMD ["python"]
