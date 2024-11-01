@@ -1,10 +1,8 @@
 import os
-from typing import Any, Dict, NamedTuple
 from rich import print
 from petscope.dynamicpet_wrapper.srtm import call_srtm
 from petscope.registration import ants_registration, ants_warp_image
 from petscope.utils import convert_4d_to_3d, compute_mean_volume, compute_4d_image
-from petscope.mask_utils import get_reference_mask
 from petscope.petpvc_wrapper.utils import petpvc_create_4d_mask
 from petscope.petpvc_wrapper.petpvc import run_petpvc_iterative_yang
 
@@ -12,21 +10,23 @@ class PETScope:
     def __init__(self) -> None:
         pass
 
-    def run_srtm(self,
-                pet_4d_path: str,
-                t1_3d_path: str,
-                template_path: str,
-                template: str,
-                reference_region: str,
-                output_dir: str,
-                model: str ='SRTMZhou2003'):
+    def run_srtm(
+        self,
+        pet_4d_path: str,
+        t1_3d_path: str,
+        template_path: str,
+        template: str,
+        reference_region: str,
+        output_dir: str,
+        model: str = 'SRTMZhou2003'
+    ):
         # TODO: Validation
         # - Reference mask needs to be in same space as T1 (maybe add additional argument which
         # indicates space in which run_srtm will operate)
         # - Check if paths exist
 
         # Convert 4D PET image to sequence of 3D volumes
-        print(f":gear: STEP 1. [bold green]Converting 4D PET to Sequence of 3D Volumes")
+        print(":gear: STEP 1. [bold green]Converting 4D PET to Sequence of 3D Volumes")
         pet_3d_volumes_dir = os.path.join(output_dir, "pet_3d_volumes")
         os.makedirs(pet_3d_volumes_dir, exist_ok=True)
         convert_4d_to_3d(
@@ -36,7 +36,7 @@ class PETScope:
         )
 
         # Compute PET 3D Mean Volume
-        print(f":gear: STEP 2. [bold green]Computing MEAN 3D Volume")
+        print(":gear: STEP 2. [bold green]Computing MEAN 3D Volume")
         pet_3d_mean_volume_path = os.path.join(output_dir, 'pet_3d_mean.nii')
         _ = compute_mean_volume(
             volume_dir=pet_3d_volumes_dir,
@@ -44,7 +44,7 @@ class PETScope:
         )
 
         # Rigid Registration - PET to T1 Space
-        print(f":gear: STEP 3. [bold green]Running ANTs Rigid Registration")
+        print(":gear: STEP 3. [bold green]Running ANTs Rigid Registration")
         registration_dir = os.path.join(output_dir, 'pet_to_t1_registration')
         os.makedirs(registration_dir, exist_ok=True)
         transformation_path = ants_registration(
@@ -57,7 +57,7 @@ class PETScope:
         )
 
         # Warp reference mask to PET space
-        print(f":gear: STEP 4. [bold green]Warp Reference Mask (MNI) to PET Space")
+        print(":gear: STEP 4. [bold green]Warp Reference Mask (MNI) to PET Space")
         template_pet_space_path = os.path.join(registration_dir, 'template_pet_space.nii')
         ants_warp_image(
             fixed_img_path=pet_3d_mean_volume_path,
@@ -69,7 +69,7 @@ class PETScope:
         )
 
         # Partial Volume Correction (PETPVC)
-        print(f":gear: STEP 5. [bold green]Compute 4D Mask (PET Space) for Partial Volume Correction (PVC)")
+        print(":gear: STEP 5. [bold green]Compute 4D Mask (PET Space) for Partial Volume Correction (PVC)")
         pvc_dir = os.path.join(output_dir, 'PVC')
         os.makedirs(pvc_dir, exist_ok=True)
         refmask_pet_space_4d_path = os.path.join(pvc_dir, 'refmask_pet_space_4d.nii.gz')
@@ -78,10 +78,10 @@ class PETScope:
             template_name=template,
             reference_name=reference_region,
             mask_4d_out=refmask_pet_space_4d_path
-        )        
+        )
 
         # Partial Volume Correction (if applicable)
-        print(f":gear: STEP 6. [bold green]Running Partial Volume Correction (PVC)")
+        print(":gear: STEP 6. [bold green]Running Partial Volume Correction (PVC)")
         pet_3d_pvc_volume_dir = os.path.join(output_dir, "pet_3d_volumes_pvc")
         os.makedirs(pet_3d_pvc_volume_dir, exist_ok=True)
         for pet_3d_volume in os.listdir(pet_3d_volumes_dir):
@@ -102,7 +102,7 @@ class PETScope:
         # NOTE: since we are utilizing C3D it was not possible to simply change
         # orientation of 4D image, we had to 1st split into 3D images and then
         # correct for orientation
-        print(f":gear: STEP 7. [bold green]Re-computing PET 4D Image in RSA Orientation")
+        print(":gear: STEP 7. [bold green]Re-computing PET 4D Image in RSA Orientation")
         pet_4d_rsa_volume_path = os.path.join(output_dir, 'pet_4d_rsa.nii')
         _ = compute_4d_image(
             volume_dir=pet_3d_pvc_volume_dir,
@@ -110,7 +110,7 @@ class PETScope:
         )
 
         # Execute Simplified Reference Tissue Model (SRTM)
-        print(f":gear: STEP 8. [bold green]Execute Simplified Reference Tissue Model (SRTM)")
+        print(":gear: STEP 8. [bold green]Execute Simplified Reference Tissue Model (SRTM)")
         srtm_results_dir = os.path.join(output_dir, 'SRTM_RESULTS')
         call_srtm(
             pet_4d_path=pet_4d_rsa_volume_path,
