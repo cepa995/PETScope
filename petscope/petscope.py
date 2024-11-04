@@ -2,7 +2,7 @@ import os
 from rich import print
 from petscope.dynamicpet_wrapper.srtm import call_srtm
 from petscope.registration import ants_registration, ants_warp_image
-from petscope.utils import convert_4d_to_3d, compute_mean_volume, compute_4d_image
+from petscope.utils import convert_4d_to_3d, compute_mean_volume, compute_4d_image, c3d_space_check
 from petscope.petpvc_wrapper.utils import petpvc_create_4d_mask
 from petscope.petpvc_wrapper.petpvc import run_petpvc_iterative_yang
 
@@ -20,10 +20,16 @@ class PETScope:
         output_dir: str,
         model: str = 'SRTMZhou2003'
     ):
-        # TODO: Validation
-        # - Reference mask needs to be in same space as T1 (maybe add additional argument which
-        # indicates space in which run_srtm will operate)
-        # - Check if paths exist
+        # TODO: Validation:
+        # 1. Check if T1 Image is in the same space as Template image: DONE
+        # Add more validations for the Input
+        print(":gear: STEP 0. [bold green]Validating Input Arguments")
+        if not c3d_space_check(template_path, t1_3d_path):
+            from petscope.exceptions import TemplateImageNotInT1SpaceException
+            raise TemplateImageNotInT1SpaceException(
+                f"Template image {template_path} is not in the same space as T1 image {t1_3d_path}"
+            )
+        print("\t:white_heavy_check_mark: [bold green]INPUTS ARE VALID!")
 
         # Convert 4D PET image to sequence of 3D volumes
         print(":gear: STEP 1. [bold green]Converting 4D PET to Sequence of 3D Volumes")

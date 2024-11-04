@@ -22,3 +22,8 @@ class PETJsonGenerationException(Exception):
     """Exception raised when PET JSON file could not be generated due to
     validation related issues"""
     pass
+
+class TemplateImageNotInT1SpaceException(Exception):
+    """Exception raised when Template Image and T1 images are NOT in
+    same space"""
+    pass
