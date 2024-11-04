@@ -1,0 +1,3 @@
+[submodule "PETScope-Test-Data"]
+	path = PETScope-Test-Data
+	url = https://github.com/cepa995/PETScope-Test-Data.git
