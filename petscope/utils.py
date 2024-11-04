@@ -1,4 +1,5 @@
 import os
+import re
 import nibabel as nib
 import subprocess
 import numpy as np
@@ -122,3 +123,45 @@ def convert_4d_to_3d(img_4d_path, img_3d_dir, prefix='pet_3d_', orientation=None
                 orientation_code=orientation,
                 output_path=img_3d_vol_out
             )
+
+def get_orientation(nifti_image_path) -> str:
+    """
+    Check the NIfTI orientation.
+    :param nifti_image_path: absolute path to NIfTI file
+    :return: image orientation
+    """
+    image_nii = nib.load(nifti_image_path)
+    x, y, z = nib.aff2axcodes(image_nii.affine)
+    return x + y + z
+
+def extract_image_info(image_path):
+    """Extracts dimension, bounding box, and orientation info from an image using c3d."""
+    c3d_info_cmd = ["c3d", image_path, "-info"]
+    result = subprocess.run(c3d_info_cmd, capture_output=True, text=True)
+    info = result.stdout
+
+    # Regular expressions to find 'dim', 'bb', and 'orient' values
+    dim_match = re.search(r'dim = \[([^\]]+)\]', info)
+    bb_match = re.search(r'bb = \{([^\}]+)\}', info)
+    orient_match = re.search(r'orient = (\w+)', info)
+
+    # Extract and convert values if matches are found
+    dim = [float(x) for x in dim_match.group(1).split(',')] if dim_match else None
+    bb = [[float(x) for x in point.replace('[', '').replace(']', '').split()] for point in bb_match.group(1).split('], [')] if bb_match else None
+    orient = orient_match.group(1) if orient_match else None
+
+    return dim, bb, orient
+
+def c3d_space_check(image1_path, image2_path) -> bool:
+    """
+    Utilizes Convert3D tool to get image information,
+    parse it, and check if the two images belong to the same space.
+
+    :param image1_path: Absolute path to the 1st image
+    :param image2_path: Absolute path to the 2nd image
+    :returns: True if images are in the same space, False otherwise
+    """
+    dim1, bb1, orient1 = extract_image_info(image1_path)
+    dim2, bb2, orient2 = extract_image_info(image2_path)
+
+    return dim1 == dim2 and bb1 == bb2 and orient1 == orient2

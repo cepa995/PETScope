@@ -34,8 +34,9 @@ def registration_module_namespace():
 def petpvc_create_4d_mask_test_args():
     """Arguments for petpvc_create_4d_mask test."""
     return {
-        "mask_3d_path": "/neuro/stefan/workspace/SVA2-PET/SRTM-PIPELINE/petscope-test-results-srtm/PET_TO_T1/brain_seg_pet_space.nii",
-        "list_of_labels": [17, 53],
+        "template_path": "/neuro/stefan/workspace/SVA2-PET/SRTM-PIPELINE/petscope-test-results-srtm/PET_TO_T1/brain_seg_pet_space.nii",
+        "template_name": "FreeSurfer",
+        "reference_name": "WholeCerebellum",
         "mask_4d_out": "/neuro/stefan/workspace/SVA2-PET/SRTM-PIPELINE/mask_4d_results/mask_4d.nii.gz"
     }
 
@@ -68,4 +69,14 @@ def compute_mean_volume_test_args(volume_dir, tmp_path):
     return {
         "volume_dir": volume_dir,
         "mean_3d_out": str(tmp_path / "output_mean_3d.nii")  # Temporary output file
+    }
+
+@pytest.fixture
+def c3d_space_check_test_args():
+    """Arguments for c3d_space_check test."""
+    return {
+        "image1_path_case1": "/neuro/stefan/workspace/SVA2-PET/SRTM-PIPELINE/data/brain-segmentation.nii.gz",
+        "image2_path_case1": "/neuro/stefan/workspace/SVA2-PET/SRTM-PIPELINE/data/t1_mni.nii",
+        "image1_path_case2": "/neuro/stefan/workspace/SVA2-PET/SRTM-PIPELINE/data/pet_3d.nii",
+        "image2_path_case2": "/neuro/stefan/workspace/SVA2-PET/SRTM-PIPELINE/data/t1_mni.nii",
     }

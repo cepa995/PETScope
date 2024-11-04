@@ -1,4 +1,5 @@
 import os
+import pytest
 import numpy as np
 import nibabel as nib
 
@@ -40,3 +41,37 @@ def test_compute_mean_volume(compute_mean_volume_test_args) -> None:
                        for f in os.listdir(compute_mean_volume_test_args["volume_dir"])]
     calculated_mean = np.mean(individual_data, axis=0)
     assert np.allclose(mean_data, calculated_mean, atol=1e-5), "Mean 3D volume data mismatch"
+
+def load_image(path):
+    """Helper to check if the path exists and load the image."""
+    assert os.path.exists(path), f"Image path does not exist: {path}"
+    image = nib.load(path)
+    assert image is not None, f"Failed to load image at: {path}"
+    return image
+
+@pytest.mark.parametrize("image1_key, image2_key, expected", [
+    ("image1_path_case1", "image2_path_case1", True),
+    ("image1_path_case2", "image2_path_case2", False),
+])
+def test_c3d_space_check(c3d_space_check_test_args, image1_key, image2_key, expected) -> None:
+    """
+    Test c3d_space_check function to verify if two images are in the same space.
+    :param c3d_space_check_test_args: dictionary with test paths for images
+    :param image1_key: Key for the first image path in the test args
+    :param image2_key: Key for the second image path in the test args
+    :param expected: Expected result (True if same space, False otherwise)
+    """
+    from petscope.utils import c3d_space_check
+
+    image1_path = c3d_space_check_test_args[image1_key]
+    image2_path = c3d_space_check_test_args[image2_key]
+
+    # Load and verify images exist and are valid
+    load_image(image1_path)
+    load_image(image2_path)
+
+    # Check if images are in the same space
+    result = c3d_space_check(image1_path=image1_path, image2_path=image2_path)
+    
+    # Assert the result matches expected value
+    assert result == expected, f"Expected {expected} but got {result} for {image1_key} and {image2_key}"
