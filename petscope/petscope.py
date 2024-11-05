@@ -10,6 +10,46 @@ class PETScope:
     def __init__(self) -> None:
         pass
 
+    def pet_to_t1(
+        self,
+        pet_4d_path: str,
+        t1_3d_path: str,
+        type_of_transform: str,
+        output_dir: str
+    ) -> int:
+        # Convert 4D PET image to sequence of 3D volumes
+        print(":gear: STEP 1. [bold green]Converting 4D PET to Sequence of 3D Volumes")
+        pet_3d_volumes_dir = os.path.join(output_dir, "pet_3d_volumes")
+        os.makedirs(pet_3d_volumes_dir, exist_ok=True)
+        convert_4d_to_3d(
+            img_4d_path=pet_4d_path,
+            img_3d_dir=pet_3d_volumes_dir,
+            orientation='RSA'
+        )
+
+        # Compute PET 3D Mean Volume
+        print(":gear: STEP 2. [bold green]Computing MEAN 3D Volume")
+        pet_3d_mean_volume_path = os.path.join(output_dir, 'pet_3d_mean.nii')
+        _ = compute_mean_volume(
+            volume_dir=pet_3d_volumes_dir,
+            mean_3d_out=pet_3d_mean_volume_path
+        )
+
+        # Rigid Registration - PET to T1 Space
+        print(f":gear: STEP 3. [bold green]Running ANTs {type_of_transform} Registration")
+        registration_dir = os.path.join(output_dir, 'pet_to_t1_registration')
+        os.makedirs(registration_dir, exist_ok=True)
+        _ = ants_registration(
+            moving_img_path=pet_3d_mean_volume_path,
+            fixed_img_path=t1_3d_path,
+            registration_dir=registration_dir,
+            filename_fixed_to_moving='t1_pet_space.nii',
+            filename_moving_to_fixed='pet_t1_space.nii',
+            type_of_transform=type_of_transform
+        )
+        
+        return 0
+
     def run_srtm(
         self,
         pet_4d_path: str,

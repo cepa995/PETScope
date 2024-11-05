@@ -37,6 +37,28 @@ def main(
 def get_petscope() -> PETScope:
     return PETScope()
 
+@app.command(name="pet_to_t1")
+def pet_to_t1(
+    pet_4d_path: Annotated[str, typer.Argument(help="Absolute path to the PET 4D Image")],
+    t1_3d_path: Annotated[str, typer.Argument(help="Absolute path to the T1 3D Image")],
+    output_dir: Annotated[str, typer.Argument(help="Absolute path to the directory (does not have to exist), where result will be stored")],
+    type_of_transform: str = typer.Option("Rigid", "--transform", "-t", help="Choose Transformation Type (Rigid, Affine, SyN)", rich_help_panel="Transformation Types"),
+) -> None:
+    """Computes a mean 3D volume from a given 4D PET image and registers it using ANTs
+    to T1 space"""
+    petscope = get_petscope()
+    print(f"\n:fire: [bold yellow]Starting PET -> T1 ANTs {type_of_transform} Registration! :fire:")
+    error_code = petscope.pet_to_t1(
+        pet_4d_path=pet_4d_path,
+        t1_3d_path=t1_3d_path,
+        type_of_transform=type_of_transform,
+        output_dir=output_dir
+    )
+    if error_code:
+        print(":x: [bold red]PET to T1 Registration Was NOT Successful! ")
+    else:
+        print(":white_heavy_check_mark: [bold green]PET t T1 Registration was Successfull! ")
+
 @app.command(name="run_srtm")
 def run_srtm(
         pet_4d_path: Annotated[str, typer.Argument(help="Absolute path to the PET 4D Image")],
