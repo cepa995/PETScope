@@ -56,7 +56,7 @@ def compute_time_activity_curve(
         time_activity_curve_out: str,
         window_length: int = None,
         polyorder: int = None
-    ) -> None:
+    ) -> np.array:
     """
     Computes a Time Activity Curve (TAC) over the given reference
     region (make sure to specify one of the supported reference
@@ -102,6 +102,9 @@ def compute_time_activity_curve(
     # Plot the Time Activity Curve and save it
     plt.figure(figsize=(10, 5))
     plt.plot(tac, marker='o', color='blue', label='Original TAC')
+
+    # TAC smoothing
+    smoothed_tac = None
     if window_length and polyorder:
         if window_length < polyorder:
             from petscope.exceptions import SavitzkyGolaySmoothingException
@@ -110,6 +113,7 @@ def compute_time_activity_curve(
         print(f"\tSavitzky Golay Smoothing with WL = {window_length} and PO = {polyorder}")
         smoothed_tac = savgol_filter(tac, window_length, polyorder)
         plt.plot(smoothed_tac, marker='x', color='red', label='Smoothed TAC', linewidth=2)
+
     plt.title('Time Activity Curve (TAC)')
     plt.xlabel('Time Frame')
     plt.ylabel('Average Activity')
@@ -118,6 +122,11 @@ def compute_time_activity_curve(
     # Save the figure
     plt.savefig(time_activity_curve_out, dpi=300, bbox_inches='tight')  
     plt.close()  
+    
+    # Return Time Activity Curve
+    if smoothed_tac is not None:
+        return smoothed_tac
+    return tac
 
 def change_dtype(image_path, output_path, dtype):
     """

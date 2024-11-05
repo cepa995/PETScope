@@ -1,4 +1,5 @@
 import os
+import numpy as np
 from rich import print
 from petscope.dynamicpet_wrapper.srtm import call_srtm
 from petscope.registration import ants_registration, ants_warp_image
@@ -10,6 +11,28 @@ from petscope.petpvc_wrapper.petpvc import run_petpvc_iterative_yang
 class PETScope:
     def __init__(self) -> None:
         pass
+
+    def get_tac(
+        self,
+        pet_image_path: str,
+        template_path: str,
+        template_name: str,
+        reference_name: str,
+        time_activity_curve_out: str,
+        window_length: int = None,
+        polyorder: int = None
+    ) -> np.array:
+        _, _ = compute_time_activity_curve(
+            pet_image_path=pet_image_path,
+            template_path=template_path,
+            template_name=template_name,
+            reference_name=reference_name,
+            time_activity_curve_out=time_activity_curve_out,
+            window_length=window_length,
+            polyorder=polyorder
+        )
+
+        return 0
 
     def pet_to_t1(
         self,
