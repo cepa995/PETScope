@@ -2,44 +2,98 @@ import os
 import re
 import nibabel as nib
 import subprocess
+import functools
 import numpy as np
 import matplotlib.pyplot as plt
+from rich import print
 from nilearn.image import mean_img, concat_imgs
 from scipy.signal import savgol_filter
 
+from petscope.constants import REFERENCE_REGIONS
+
+def get_reference_region_mask(
+        template_path: str,
+        template_name: str,
+        reference_name: str,
+        mask_out: str
+    ) -> nib.Nifti1Image:
+    """
+    Creates a 3D Reference Region mask 
+
+    :param template_path - absolute path to the template mask
+    :param template_name - string which represents name of a template
+     (e.g. FreeSurfer)
+    :param reference_name - string which represents name of a desired
+     reference region (e.g. WholeCerebellum)
+    :param mask_out: absolute path where the resulting 3D mask will be 
+     saved
+    :returns: 3D Nifti1Image object
+    """
+    reference_region_labels = REFERENCE_REGIONS[template_name][reference_name]
+    # Create output directory if it doesn't exist
+    dirname = os.path.dirname(mask_out)
+    os.makedirs(dirname, exist_ok=True)
+
+    # Load the 3D mask data
+    mask_3d_nii = nib.load(template_path)
+    mask_3d_data = mask_3d_nii.get_fdata().astype(np.uint16)
+
+    # Create a binary mask that combines all labels
+    mask = functools.reduce(np.logical_or, (mask_3d_data == lbl for lbl in reference_region_labels))
+    masked_image = np.where(mask, mask_3d_data, 0)
+    masked_image[masked_image != 0] = 1
+    masked_image_nii = nib.Nifti1Image(masked_image.astype(np.uint8), mask_3d_nii.affine)
+    nib.save(masked_image_nii, mask_out)
+
+    # Return Nifti image as a result
+    return masked_image_nii
+
 def compute_time_activity_curve(
         pet_image_path: str,
-        referemce_region_path: str,
-        time_activity_curve_out: str) -> None:
+        template_path: str,
+        template_name: str,
+        reference_name: str,
+        time_activity_curve_out: str,
+        window_length: int = None,
+        polyorder: int = None
+    ) -> None:
     """
     Computes a Time Activity Curve (TAC) over the given reference
     region (make sure to specify one of the supported reference
     regions).
 
     :param pet_3d_image_path - absolute path to mean 3D or 4D PET image
-    :param reference_region_path - absolute path to a reference region
+    :param template_path - absolute path to the template mask
+    :param template_name - string which represents name of a template
+     (e.g. FreeSurfer)
+    :param reference_name - string which represents name of a desired
+     reference region (e.g. WholeCerebellum)
     :param time_activity_curve_out - absolute path to TAC out
     """
-    # Check if image and reference region are indeed in the same space
-    if not c3d_space_check(pet_image_path, referemce_region_path):
-        from petscope.exceptions import NotSamePhysicalSpaceException
-        raise NotSamePhysicalSpaceException(
-            f"Template image {pet_image_path} is not in the same space as the
-             reference region {referemce_region_path}"
-        )
-    
+    # Create directory if it does not exist
+    dirname = os.path.dirname(time_activity_curve_out)
+    os.makedirs(dirname, exist_ok=True)
+
+    # Get Reference Region/Mask
+    reference_mask_path = os.path.join(dirname, "reference_mask.nii")
+    reference_region_img_nii = get_reference_region_mask(
+        template_path=template_path,
+        template_name=template_name,
+        reference_name=reference_name,
+        mask_out=reference_mask_path
+    )
+    reference_region_img_data = reference_region_img_nii.get_fdata().astype(bool)
+
     # Load PET image
     pet_img_nii = nib.load(pet_image_path)
     pet_img_data = pet_img_nii.get_fdata()
 
-    # Load Reference Region
-    reference_region_img_nii = nib.load(referemce_region_path)
-    reference_region_img_data = reference_region_img_nii.get_fdata()
-
     # Calculate the TAC by averaging over the ROI for each time frame
     tac = []
     for t in range(pet_img_data.shape[3]): # Looping over time-frames
-        average_activity = np.mean(pet_img_data[reference_region_img_data, t])
+        pet_data_masked = pet_img_data[reference_region_img_data, t]
+        average_activity = np.mean(pet_data_masked)
+        print(f"\t:chart_increasing: [bold green]Average Time Activity for Frame [/]{t} [bold green]is [/]{average_activity}")
         tac.append(average_activity)
     
     # Convert TAC to numpy array for easier handling
@@ -47,7 +101,15 @@ def compute_time_activity_curve(
 
     # Plot the Time Activity Curve and save it
     plt.figure(figsize=(10, 5))
-    plt.plot(tac, marker='o')
+    plt.plot(tac, marker='o', color='blue', label='Original TAC')
+    if window_length and polyorder:
+        if window_length < polyorder:
+            from petscope.exceptions import SavitzkyGolaySmoothingException
+            raise SavitzkyGolaySmoothingException(f"Windows size ({window_length})\
+                    cannot be smaller then polynomial order ({polyorder})")
+        print(f"\tSavitzky Golay Smoothing with WL = {window_length} and PO = {polyorder}")
+        smoothed_tac = savgol_filter(tac, window_length, polyorder)
+        plt.plot(smoothed_tac, marker='x', color='red', label='Smoothed TAC', linewidth=2)
     plt.title('Time Activity Curve (TAC)')
     plt.xlabel('Time Frame')
     plt.ylabel('Average Activity')

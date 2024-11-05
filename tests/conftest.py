@@ -60,6 +60,19 @@ def petpvc_create_4d_mask_test_args():
     }
 
 @pytest.fixture
+def get_reference_region_mask_test_args():
+    """Arguments for get_reference_region_mask test."""
+    template_path = TEST_DATA_DIR / "TEMPLATES" / "Input" / "brain-segmentation.nii.gz"
+    mask_out = TEST_DATA_DIR / "tests" / "reference_region_masks" / "reference_region.nii.gz"
+
+    return {
+        "template_path": str(template_path),
+        "template_name": "FreeSurfer",
+        "reference_name": "WholeCerebellum",
+        "mask_out": str(mask_out)
+    }
+
+@pytest.fixture
 def volume_dir(tmp_path):
     """Fixture to set up a directory with synthetic 3D volumes."""
     vol_dir = tmp_path / "3d_volumes"

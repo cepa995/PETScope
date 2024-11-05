@@ -26,3 +26,8 @@ class PETJsonGenerationException(Exception):
 class NotSamePhysicalSpaceException(Exception):
     """Exception raised when two given images are NOT in same space"""
     pass
+
+# PET Utilities Exception
+class SavitzkyGolaySmoothingException(Exception):
+    """Exception raised when window size is bigger than polynomial 
+    order in Savitzky Golay smoothing"""

@@ -2,7 +2,8 @@ import os
 from rich import print
 from petscope.dynamicpet_wrapper.srtm import call_srtm
 from petscope.registration import ants_registration, ants_warp_image
-from petscope.utils import convert_4d_to_3d, compute_mean_volume, compute_4d_image, c3d_space_check
+from petscope.utils import compute_time_activity_curve, convert_4d_to_3d,\
+      compute_mean_volume, compute_4d_image, c3d_space_check
 from petscope.petpvc_wrapper.utils import petpvc_create_4d_mask
 from petscope.petpvc_wrapper.petpvc import run_petpvc_iterative_yang
 
@@ -58,7 +59,9 @@ class PETScope:
         template: str,
         reference_region: str,
         output_dir: str,
-        model: str = 'SRTMZhou2003'
+        model: str,
+        window_size: int,
+        polynomial_order: int
     ):
         # TODO: Validation:
         # 1. Check if T1 Image is in the same space as Template image: DONE
@@ -155,8 +158,21 @@ class PETScope:
             img_4d_out=pet_4d_rsa_volume_path
         )
 
+        # Compute Time Activity Curve (TAC)
+        print(":gear: STEP 8. [bold green]Computing Time Activity Curve (TAC)")
+        tac_out = os.path.join(output_dir, 'time_activity_curve.png')
+        compute_time_activity_curve(
+            pet_image_path=pet_4d_rsa_volume_path,
+            template_path=template_pet_space_path,
+            template_name=template,
+            reference_name=reference_region,
+            time_activity_curve_out=tac_out,
+            window_length=window_size,
+            polyorder=polynomial_order
+        )
+
         # Execute Simplified Reference Tissue Model (SRTM)
-        print(":gear: STEP 8. [bold green]Execute Simplified Reference Tissue Model (SRTM)")
+        print(":gear: STEP 9. [bold green]Execute Simplified Reference Tissue Model (SRTM)")
         srtm_results_dir = os.path.join(output_dir, 'SRTM_RESULTS')
         call_srtm(
             pet_4d_path=pet_4d_rsa_volume_path,

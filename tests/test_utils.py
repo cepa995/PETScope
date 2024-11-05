@@ -75,3 +75,28 @@ def test_c3d_space_check(c3d_space_check_test_args, image1_key, image2_key, expe
     
     # Assert the result matches expected value
     assert result == expected, f"Expected {expected} but got {result} for {image1_key} and {image2_key}"
+
+def test_get_reference_region_mask(get_reference_region_mask_test_args) -> None:
+    """Tests get_reference_region mask function for producing a desired reference
+    region """
+    from petscope.utils import get_reference_region_mask
+
+    # Parse arguments
+    template_path = get_reference_region_mask_test_args["template_path"]
+    template_name = get_reference_region_mask_test_args["template_name"]
+    reference_name = get_reference_region_mask_test_args["reference_name"]
+    mask_out = get_reference_region_mask_test_args["mask_out"]
+
+    # Call/Test get_reference_region_mask function
+    reference_region = get_reference_region_mask(
+        template_path=template_path,
+        template_name=template_name,
+        reference_name=reference_name,
+        mask_out=mask_out
+    )
+    reference_region_data = reference_region.get_fdata().astype(np.uint8)
+
+    # Assertions
+    assert reference_region
+    assert len(reference_region_data.shape) == 3
+    assert np.max(reference_region_data) == 1 and np.min(reference_region_data) == 0
