@@ -47,7 +47,7 @@ class PETScope:
             filename_moving_to_fixed='pet_t1_space.nii',
             type_of_transform=type_of_transform
         )
-        
+
         return 0
 
     def run_srtm(
@@ -65,8 +65,8 @@ class PETScope:
         # Add more validations for the Input
         print(":gear: STEP 0. [bold green]Validating Input Arguments")
         if not c3d_space_check(template_path, t1_3d_path):
-            from petscope.exceptions import TemplateImageNotInT1SpaceException
-            raise TemplateImageNotInT1SpaceException(
+            from petscope.exceptions import NotSamePhysicalSpaceException
+            raise NotSamePhysicalSpaceException(
                 f"Template image {template_path} is not in the same space as T1 image {t1_3d_path}"
             )
         print("\t:white_heavy_check_mark: [bold green]INPUTS ARE VALID!")

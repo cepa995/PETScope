@@ -3,8 +3,59 @@ import re
 import nibabel as nib
 import subprocess
 import numpy as np
+import matplotlib.pyplot as plt
 from nilearn.image import mean_img, concat_imgs
+from scipy.signal import savgol_filter
 
+def compute_time_activity_curve(
+        pet_image_path: str,
+        referemce_region_path: str,
+        time_activity_curve_out: str) -> None:
+    """
+    Computes a Time Activity Curve (TAC) over the given reference
+    region (make sure to specify one of the supported reference
+    regions).
+
+    :param pet_3d_image_path - absolute path to mean 3D or 4D PET image
+    :param reference_region_path - absolute path to a reference region
+    :param time_activity_curve_out - absolute path to TAC out
+    """
+    # Check if image and reference region are indeed in the same space
+    if not c3d_space_check(pet_image_path, referemce_region_path):
+        from petscope.exceptions import NotSamePhysicalSpaceException
+        raise NotSamePhysicalSpaceException(
+            f"Template image {pet_image_path} is not in the same space as the
+             reference region {referemce_region_path}"
+        )
+    
+    # Load PET image
+    pet_img_nii = nib.load(pet_image_path)
+    pet_img_data = pet_img_nii.get_fdata()
+
+    # Load Reference Region
+    reference_region_img_nii = nib.load(referemce_region_path)
+    reference_region_img_data = reference_region_img_nii.get_fdata()
+
+    # Calculate the TAC by averaging over the ROI for each time frame
+    tac = []
+    for t in range(pet_img_data.shape[3]): # Looping over time-frames
+        average_activity = np.mean(pet_img_data[reference_region_img_data, t])
+        tac.append(average_activity)
+    
+    # Convert TAC to numpy array for easier handling
+    tac = np.array(tac)
+
+    # Plot the Time Activity Curve and save it
+    plt.figure(figsize=(10, 5))
+    plt.plot(tac, marker='o')
+    plt.title('Time Activity Curve (TAC)')
+    plt.xlabel('Time Frame')
+    plt.ylabel('Average Activity')
+    plt.grid()
+
+    # Save the figure
+    plt.savefig(time_activity_curve_out, dpi=300, bbox_inches='tight')  
+    plt.close()  
 
 def change_dtype(image_path, output_path, dtype):
     """
@@ -165,3 +216,4 @@ def c3d_space_check(image1_path, image2_path) -> bool:
     dim2, bb2, orient2 = extract_image_info(image2_path)
 
     return dim1 == dim2 and bb1 == bb2 and orient1 == orient2
+

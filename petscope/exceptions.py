@@ -23,7 +23,6 @@ class PETJsonGenerationException(Exception):
     validation related issues"""
     pass
 
-class TemplateImageNotInT1SpaceException(Exception):
-    """Exception raised when Template Image and T1 images are NOT in
-    same space"""
+class NotSamePhysicalSpaceException(Exception):
+    """Exception raised when two given images are NOT in same space"""
     pass
