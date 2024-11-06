@@ -121,6 +121,13 @@ def validate_settings_json(pet_image_path: str, settings_json: Dict[str, Any]) -
             from petscope.exceptions import FrameStartTimeAndOrDurationException
             raise FrameStartTimeAndOrDurationException("There is a disagreement between "
                     + "frame start time and frame duration lists in settings_template.json")
+        
+    # Step 4. Make sure PET data is in kBq/mL units, otherwise we need scanner calibration
+    # factor to normalize voxel intensities and convert to kBq/mL units, which are needed
+    # for TAC computation
+    if settings_json["pet_json"]["Units"].lower() != "kbq/ml":
+        from petscope.exceptions import PETDataUnitsException
+        raise PETDataUnitsException(f"Expected kBq/mL units, got {settings_json["pet_json"]["Units"]} instead")
     return True
 
 def read_settings_json() -> Dict[str, Union[int, str, List[str]]]:
@@ -258,7 +265,7 @@ def compute_time_activity_curve(
 
     plt.title('Time Activity Curve (TAC)')
     plt.xlabel('Time Frame')
-    plt.ylabel('Average Activity')
+    plt.ylabel('Average Activity (kBq/mL)')
     plt.grid()
 
     # Save the figure

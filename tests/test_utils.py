@@ -8,7 +8,8 @@ from petscope.exceptions import (
     PETImageNotFoundException,
     PET3DImageException,
     FrameNumberMismatchException,
-    FrameStartTimeAndOrDurationException
+    FrameStartTimeAndOrDurationException,
+    PETDataUnitsException
 )
 
 def test_compute_4d_image(compute_4d_image_test_args) -> None:
@@ -149,3 +150,11 @@ def test_validate_settings_json_frame_disagreement(validate_settings_json_test_a
     with pytest.raises(FrameStartTimeAndOrDurationException, match="There is a disagreement between "
                        + "frame start time and frame duration lists in settings_template.json"):
         validate_settings_json(args["pet_4d_image_path"], args["invalid_json_input_v2"])
+
+def test_validate_settings_json_kbqml_units(validate_settings_json_test_args):
+    """Test that validate_settings_json runs successfully with valid input."""
+    args = validate_settings_json_test_args
+    invalid_json_input = args["valid_json_input"]
+    invalid_json_input["pet_json"]["Units"] = "mm3"
+    with pytest.raises(PETDataUnitsException, match="Expected kBq/mL units, got mm3 instead"):
+        validate_settings_json(args["pet_4d_image_path"], invalid_json_input)

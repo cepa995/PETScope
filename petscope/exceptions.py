@@ -65,3 +65,7 @@ class FrameStartTimeAndOrDurationException(Exception):
     """Exception raised when the FrameStartTime and FrameDuration lists
     inside settings_template.json are in disagreement"""
     pass
+
+class PETDataUnitsException(Exception):
+    """Exception raised if PET data is not in kBq/mL Units"""
+    pass
