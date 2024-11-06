@@ -1,3 +1,11 @@
+import os
+from pathlib import Path
+
+# Locate the PETScope-Test-Data directory relative to this file
+ROOT_DIR = Path(__file__).resolve().parent.parent
+# Absolute path to settings_template.json
+SETTINGS_JSON = os.path.join(str(ROOT_DIR), "settings_template.json")
+# Supported transformation types for ANTs registration
 SUPPORTED_ANTS_TRANSFORM_TYPES = ['Rigid', 'Affine']
 # Parent keys in settings JSON template
 PET_DATA = 'pet_json'

@@ -1,4 +1,5 @@
 import pytest
+import copy
 import nibabel as nib
 import numpy as np
 from pathlib import Path
@@ -115,4 +116,103 @@ def c3d_space_check_test_args():
         "image2_path_case1": str(t1_mni_path),
         "image1_path_case2": str(pet_3d_path),
         "image2_path_case2": str(t1_mni_path),
+    }
+
+@pytest.fixture
+def validate_settings_json_test_args():
+    """Arguments for validate_dict_structure test"""
+    # Paths to PET images
+    pet_3d_image_path = TEST_DATA_DIR / "PET" / "Input" / "pet_3d.nii"
+    pet_4d_image_path = TEST_DATA_DIR / "PET" / "Input" / "pet_4d.nii"
+    # Sample of the VALID settings JSON template
+    input_json_is_valid = {
+        "pet_json": {
+            "AcquisitionMode": "4D",
+            "AttenuationCorrection": "Activity decay corrected",
+            "BodyPart": "brain",
+            "FrameDuration": [
+                15, 15, 15, 15, 30, 30, 30, 30, 60, 60, 60, 60, 60,
+                180, 180, 180, 180, 300, 300, 300, 300, 300, 300, 300,
+                300, 300, 300, 300
+            ],
+            "FrameTimesStart": [
+                0, 15, 30, 45, 60, 90, 120, 150, 180, 240, 300, 360, 420,
+                480, 660, 840, 1020, 1200, 1500, 1800, 2100, 2400, 2700,
+                3000, 3300, 3600, 3900
+            ],
+            "ImageDecayCorrected": "true",
+            "ImageDecayCorrectionTime": "0",
+            "InjectedMass": "5",
+            "InjectedMassUnits": "ug",
+            "InjectedRadioactivity": "200",
+            "InjectedRadioactivityUnits": "MBq",
+            "InjectionEnd": "40",
+            "InjectionStart": 5,
+            "Manufacturer": "GE",
+            "ManufacturersModelName": "Discovery",
+            "ModeOfAdministration": "bolus",
+            "ReconFilterSize": "3.0",
+            "ReconFilterType": "Gaussian",
+            "ReconMethodName": "OSEM",
+            "ReconMethodParameterLabels": "iterations",
+            "ReconMethodParameterUnits": "none",
+            "ReconMethodParameterValues": "120",
+            "ScanStart": 0,
+            "SpecificRadioactivity": "40",
+            "SpecificRadioactivityUnits": "GBq/ug",
+            "TimeZero": "10:00:00",
+            "TracerName": "FDG",
+            "TracerRadionuclide": "F18",
+            "Units": "kBq/mL"
+        }
+    }
+    # Example of the INVALID settings JSON template
+    input_json_is_not_valid = {
+        "pet_json": {
+            "AcquisitionMode": "4D",
+            "AttenuationCorrection": "Activity decay corrected",
+            "BodyPart": "brain",
+            "FrameDuration": "15, 15, 15, 15, 30, 30, 30, 30, 60, 60, 60, 60, 60,\
+                180, 180, 180, 180, 300, 300, 300, 300, 300, 300, 300,\
+                300, 300, 300, 300",
+            "FrameTimesStart": [
+                0, 15, 30, 45, 60, 90, 120, 150, 180, 240, 300, 360, 420,
+                480, 660, 840, 1020, 1200, 1500, 1800, 2100, 2400, 2700,
+                3000, 3300, 3600, 3900
+            ],
+            "ImageDecayCorrected": "true",
+            "ImageDecayCorrectionTime": "0",
+            "InjectedMass": "5",
+            "InjectedMassUnits": "ug",
+            "InjectedRadioactivity": "200",
+            "InjectedRadioactivityUnits": "MBq",
+            "InjectionEnd": "40",
+            "InjectionStart": 5,
+            "Manufacturer": "GE",
+            "ManufacturersModelName": "Discovery",
+            "ModeOfAdministration": "bolus",
+            "ReconFilterSize": "3.0",
+            "ReconFilterType": "Gaussian",
+            "ReconMethodName": "OSEM",
+            "ReconMethodParameterLabels": "iterations",
+            "ReconMethodParameterUnits": "none",
+            "ReconMethodParameterValues": 120,
+            "ScanStart": "0",
+            "SpecificRadioactivity": "40",
+            "SpecificRadioactivityUnits": "GBq/ug",
+            "TimeZero": "10:00:00",
+            "TracerName": "FDG",
+            "TracerRadionuclide": "F18",
+            "Units": "kBq/mL"
+        }
+    }
+    # Version 2 of the invalid settings JSON file
+    input_json_is_not_valid_v2 = copy.deepcopy(input_json_is_valid)
+    input_json_is_not_valid_v2["pet_json"]["FrameTimesStart"][0] = 15
+    return {
+        "pet_3d_image_path": pet_3d_image_path,
+        "pet_4d_image_path": pet_4d_image_path,
+        "valid_json_input": input_json_is_valid,
+        "invalid_json_input": input_json_is_not_valid,
+        "invalid_json_input_v2": input_json_is_not_valid_v2        
     }

@@ -2,6 +2,14 @@ import os
 import pytest
 import numpy as np
 import nibabel as nib
+from petscope.utils import validate_settings_json
+from petscope.exceptions import (
+    SettingsJSONInvalidStructureException,
+    PETImageNotFoundException,
+    PET3DImageException,
+    FrameNumberMismatchException,
+    FrameStartTimeAndOrDurationException
+)
 
 def test_compute_4d_image(compute_4d_image_test_args) -> None:
     """Test creation of a 4D image from 3D volumes."""
@@ -100,3 +108,44 @@ def test_get_reference_region_mask(get_reference_region_mask_test_args) -> None:
     assert reference_region
     assert len(reference_region_data.shape) == 3
     assert np.max(reference_region_data) == 1 and np.min(reference_region_data) == 0
+
+def test_validate_settings_json_success(validate_settings_json_test_args):
+    """Test that validate_settings_json runs successfully with valid input."""
+    args = validate_settings_json_test_args
+    assert validate_settings_json(args['pet_4d_image_path'], args['valid_json_input'])
+
+def test_validate_settings_json_invalid_structure(validate_settings_json_test_args):
+    """Test that validate_settings_json raises SettingsJSONInvalidStructureException for invalid input."""
+    args = validate_settings_json_test_args
+    with pytest.raises(SettingsJSONInvalidStructureException, match="Check data types and required"):
+        validate_settings_json(args['pet_4d_image_path'], args['invalid_json_input'])
+
+def test_validate_settings_json_pet_image_not_found(validate_settings_json_test_args):
+    """Test that validate_settings_json raises PETImageNotFoundException for non-existent PET image path."""
+    args = validate_settings_json_test_args
+    with pytest.raises(PETImageNotFoundException, match="Path to the PET image does not exist"):
+        validate_settings_json("invalid/path/to/pet_image.nii", args['valid_json_input'])
+
+def test_validate_settings_json_pet_3d_image_exception(validate_settings_json_test_args):
+    """Test that validate_settings_json raises PET3DImageException for 3D PET image."""
+    args = validate_settings_json_test_args
+    with pytest.raises(PET3DImageException, match="PET image should be 4D, got 3D instead"):
+        validate_settings_json(args['pet_3d_image_path'], args['valid_json_input'])
+
+def test_validate_settings_json_frame_number_mismatch(validate_settings_json_test_args, tmp_path):
+    """Test that validate_settings_json raises FrameNumberMismatchException for frame mismatch."""
+    args = validate_settings_json_test_args
+    data = np.random.rand(64, 64, 64, 64)  
+    affine = np.eye(4) 
+    img = nib.Nifti1Image(data, affine)
+    img_path = str(tmp_path / f"pet_4d_test.nii")
+    nib.save(img, img_path)
+    with pytest.raises(FrameNumberMismatchException, match="Found 64 time frames in PET 4D while in settings JSON found 27"):
+        validate_settings_json(img_path, args['valid_json_input'])
+
+def test_validate_settings_json_frame_disagreement(validate_settings_json_test_args):
+    """Test that validate_settings_json raises FrameStartTimeAndOrDurationException exception."""
+    args = validate_settings_json_test_args
+    with pytest.raises(FrameStartTimeAndOrDurationException, match="There is a disagreement between "
+                       + "frame start time and frame duration lists in settings_template.json"):
+        validate_settings_json(args["pet_4d_image_path"], args["invalid_json_input_v2"])

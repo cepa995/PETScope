@@ -1,15 +1,154 @@
 import os
 import re
+import json
 import nibabel as nib
 import subprocess
 import functools
 import numpy as np
 import matplotlib.pyplot as plt
 from rich import print
+from typing import Any, Dict, Union, List
 from nilearn.image import mean_img, concat_imgs
 from scipy.signal import savgol_filter
+from petscope.constants import REFERENCE_REGIONS, SETTINGS_JSON
 
-from petscope.constants import REFERENCE_REGIONS
+def validate_settings_json(pet_image_path: str, settings_json: Dict[str, Any]) -> bool:
+    """
+    Validates that the input JSON-like dictionary has the required structure and
+    types according to the sample JSON template.
+
+    :param pet_image_path: absolute path to the PET image
+    :param settings_json: JSON-like dictionary of the PET settings.
+    :returns: True if the JSON object is valid, False otherwise.
+    """
+    # Sample JSON structure with required keys and corresponding value types
+    sample_json = {
+        "pet_json": {
+            "AcquisitionMode": "4D",
+            "AttenuationCorrection": "Activity decay corrected",
+            "BodyPart": "brain",
+            "FrameDuration": [
+                15, 15, 15, 15, 30, 30, 30, 30, 60, 60, 60, 60, 60,
+                180, 180, 180, 180, 300, 300, 300, 300, 300, 300, 300,
+                300, 300, 300, 300
+            ],
+            "FrameTimesStart": [
+                0, 15, 30, 45, 60, 90, 120, 150, 180, 240, 300, 360, 420,
+                480, 660, 840, 1020, 1200, 1500, 1800, 2100, 2400, 2700,
+                3000, 3300, 3600, 3900
+            ],
+            "ImageDecayCorrected": "true",
+            "ImageDecayCorrectionTime": "0",
+            "InjectedMass": "5",
+            "InjectedMassUnits": "ug",
+            "InjectedRadioactivity": "185",
+            "InjectedRadioactivityUnits": "MBq",
+            "InjectionEnd": "30",
+            "InjectionStart": 0,
+            "Manufacturer": "Siemens",
+            "ManufacturersModelName": "Biograph mMr",
+            "ModeOfAdministration": "bolus",
+            "ReconFilterSize": "2.5",
+            "ReconFilterType": "PSF",
+            "ReconMethodName": "MLEM",
+            "ReconMethodParameterLabels": "iterations",
+            "ReconMethodParameterUnits": "none",
+            "ReconMethodParameterValues": "100",
+            "ScanStart": 0,
+            "SpecificRadioactivity": "35",
+            "SpecificRadioactivityUnits": "GBq/ug",
+            "TimeZero": "09:45:00",
+            "TracerName": "SV2A",
+            "TracerRadionuclide": "F18",
+            "Units": "kBq/mL"
+        }
+    }
+
+    # Helper function to check if two dictionaries match in structure and type
+    def validate_dict_structure(reference: Dict[str, Any], test: Dict[str, Any]) -> bool:
+        if not isinstance(test, dict):
+            return False
+        for key, value in reference.items():
+            if key not in test:
+                return False
+            if isinstance(value, dict):
+                if not validate_dict_structure(value, test[key]):
+                    return False
+            elif isinstance(value, list):
+                if not isinstance(test[key], list):
+                    return False
+                if len(value) > 0 and not all(isinstance(elem, type(value[0])) for elem in test[key]):
+                    return False
+            else:
+                if not isinstance(test[key], type(value)):
+                    return False
+        return True
+
+    # Step 1. Validate dictionary structure
+    is_structure_valid = validate_dict_structure(sample_json, settings_json)
+    if not is_structure_valid:
+        from petscope.exceptions import SettingsJSONInvalidStructureException
+        raise SettingsJSONInvalidStructureException("Check data types and required\
+                keys in settings_template.json file")
+    
+    # Step 2. Validate number of frames in PET image against number of frames
+    # specified in FrameStart list of settings_template.json file
+    frame_start_time_list = settings_json["pet_json"]["FrameTimesStart"]
+    frame_duration_list = settings_json["pet_json"]["FrameDuration"]
+
+    if not os.path.exists(pet_image_path):
+        from petscope.exceptions import PETImageNotFoundException
+        raise PETImageNotFoundException(f"Path to the PET image does not exist {pet_image_path}")
+    
+    # Load PET image for additional checks
+    pet_image_nii = nib.load(pet_image_path)
+    pet_image_data = pet_image_nii.get_fdata()
+    if not len(pet_image_data.shape) == 4:
+        from petscope.exceptions import PET3DImageException
+        raise PET3DImageException("PET image should be 4D, got 3D instead")
+    
+    number_of_time_frames = pet_image_data.shape[3]
+    frame_start_time_list_num = len(frame_start_time_list)
+    if number_of_time_frames != frame_start_time_list_num:
+        from petscope.exceptions import FrameNumberMismatchException
+        raise FrameNumberMismatchException(f"Found {number_of_time_frames} time frames in PET 4D "
+               + f"while in settings JSON found {frame_start_time_list_num}")
+    
+    # Step 3. Validate Frame Start Time against Frame Duration
+    for i in range(0, len(frame_start_time_list)-1):
+        print(frame_duration_list[i], frame_start_time_list[i], frame_start_time_list[i+1])
+        if frame_duration_list[i] + frame_start_time_list[i] != frame_start_time_list[i+1]:
+            from petscope.exceptions import FrameStartTimeAndOrDurationException
+            raise FrameStartTimeAndOrDurationException("There is a disagreement between "
+                    + "frame start time and frame duration lists in settings_template.json")
+    return True
+
+def read_settings_json() -> Dict[str, Union[int, str, List[str]]]:
+    """
+    Reads settings JSON template file for PET analysis
+
+    :returns python dictionary of the provided settings JSON template
+    """
+    # Check if the path to settings JSON template exists
+    if not os.path.exists(SETTINGS_JSON):
+        from petscope.exceptions import SettingsJSONTemplateNotFoundException
+        raise SettingsJSONTemplateNotFoundException(f"JSON Settings Template "
+               + f"was not found at {SETTINGS_JSON}")
+    
+    # Read settings JSON template
+    settings_json_file = open(SETTINGS_JSON)
+    settings_json = json.load(settings_json_file)
+
+    # Validate settings JSON template to make sure user did not remove or 
+    # ommit any of the required keys
+    if not validate_settings_json(settings_json):
+        from petscope.exceptions import InvalidSettingsJSONTemplateFileException
+        raise InvalidSettingsJSONTemplateFileException("Settings JSON File {SETTINGS_jSON}\
+                is invalid. Please double check its content")
+
+    # Return PET related settings
+    return settings_json["pet_json"]
+
 
 def get_reference_region_mask(
         template_path: str,
@@ -82,7 +221,7 @@ def compute_time_activity_curve(
         reference_name=reference_name,
         mask_out=reference_mask_path
     )
-    reference_region_img_data = reference_region_img_nii.get_fdata().astype(bool)
+    reference_region_img_data = reference_region_img_nii.get_fdata().astype(np.uint8)
 
     # Load PET image
     pet_img_nii = nib.load(pet_image_path)
@@ -91,7 +230,10 @@ def compute_time_activity_curve(
     # Calculate the TAC by averaging over the ROI for each time frame
     tac = []
     for t in range(pet_img_data.shape[3]): # Looping over time-frames
-        pet_data_masked = pet_img_data[reference_region_img_data, t]
+        pet_time_frame = pet_img_data[:, :, :, t]
+        pet_data_masked = np.multiply(pet_time_frame, reference_region_img_data)
+        pet_data_masked_nii = nib.Nifti1Image(pet_data_masked, pet_img_nii.affine)
+        nib.save(pet_data_masked_nii, os.path.join(dirname, f"pet_data_masked_{t}.nii"))
         average_activity = np.mean(pet_data_masked)
         print(f"\t:chart_increasing: [bold green]Average Time Activity for Frame [/]{t} [bold green]is [/]{average_activity}")
         tac.append(average_activity)
@@ -287,4 +429,3 @@ def c3d_space_check(image1_path, image2_path) -> bool:
     dim2, bb2, orient2 = extract_image_info(image2_path)
 
     return dim1 == dim2 and bb1 == bb2 and orient1 == orient2
-
