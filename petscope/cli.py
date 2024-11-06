@@ -58,8 +58,8 @@ def get_tac(
         template_name=template_name,
         reference_name=reference_name,
         time_activity_curve_out=time_activity_curve_out,
-        window_length=window_length,
-        polyorder=polyorder
+        window_length=window_size,
+        polyorder=polynomial_order
     )
     if error_code:
         print(f":x: [bold red]Could NOT Compute Time Activity Curve over the {reference_name}! ")
