@@ -40,7 +40,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'petscope = petscope.cli:app',  # Replace with the path to your Typer CLI
+            'petscope = petscope.cli:app', 
         ],
     },
     author='Stefan Radonjic',
