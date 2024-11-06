@@ -266,7 +266,7 @@ def compute_time_activity_curve(
             from petscope.exceptions import SavitzkyGolaySmoothingException
             raise SavitzkyGolaySmoothingException(f"Windows size ({window_length})\
                     cannot be smaller then polynomial order ({polyorder})")
-        print(f"\tSavitzky Golay Smoothing with WL = {window_length} and PO = {polyorder}")
+        print(f"\tSavitzky Golay Smoothing with Window Size = {window_length} and Polynomial Order = {polyorder}")
         smoothed_tac = savgol_filter(tac, window_length, polyorder)
         plt.plot(frame_midpoint_times, smoothed_tac, marker='x', color='red', label='Smoothed TAC', linewidth=2)
 
