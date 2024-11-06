@@ -1,3 +1,6 @@
 /**/__pycache__
 /**/.pytest_cache
 /data
+/PETScope.egg-info
+/dist
+/build/**
