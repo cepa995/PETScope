@@ -7,6 +7,7 @@ from typing import Optional, List
 from typing_extensions import Annotated
 from petscope import __app_name__, __version__
 from petscope.petscope import PETScope
+from petscope.utils import read_settings_json
 
 # Create explicit typer application
 app = typer.Typer()
@@ -102,6 +103,9 @@ def run_srtm(
         polynomial_order: int = typer.Option(None, "--polyorder", "-p", help="Choose Polynomial Order for Savitzky Golay TAC smoothing", rich_help_panel="Polynomial Order for Savitzky Golay TAC smoothing")
 ) -> None:
     """Runs SRTM Pipeline"""
+    # Load PET JSON file
+    pet_json = read_settings_json(pet_4d_path)
+    # Get PETScope object and execute SRTM Pipeline
     petscope = get_petscope()
     print("\n:fire: [bold yellow]Starting Simplified Tissue Model (SRTM) Pipeline! :fire:")
     error_code = petscope.run_srtm(
@@ -113,7 +117,8 @@ def run_srtm(
         output_dir=output_dir,
         model=model,
         window_size=window_size,
-        polynomial_order=polynomial_order
+        polynomial_order=polynomial_order,
+        pet_json=pet_json
     )
     if error_code:
         print(":x: [bold red]SRTM Pipeline Was NOT Successful! ")

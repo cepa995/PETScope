@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from rich import print
+from typing import Dict, Any
 from petscope.dynamicpet_wrapper.srtm import call_srtm
 from petscope.registration import ants_registration, ants_warp_image
 from petscope.utils import compute_time_activity_curve, convert_4d_to_3d,\
@@ -84,11 +85,9 @@ class PETScope:
         output_dir: str,
         model: str,
         window_size: int,
-        polynomial_order: int
+        polynomial_order: int,
+        pet_json: Dict[str, Any]
     ):
-        # TODO: Validation:
-        # 1. Check if T1 Image is in the same space as Template image: DONE
-        # Add more validations for the Input
         print(":gear: STEP 0. [bold green]Validating Input Arguments")
         if not c3d_space_check(template_path, t1_3d_path):
             from petscope.exceptions import NotSamePhysicalSpaceException
@@ -191,7 +190,9 @@ class PETScope:
             reference_name=reference_region,
             time_activity_curve_out=tac_out,
             window_length=window_size,
-            polyorder=polynomial_order
+            polyorder=polynomial_order,
+            frame_start_times=pet_json["FrameTimesStart"],
+            frame_durations=pet_json["FrameDuration"]
         )
 
         # Execute Simplified Reference Tissue Model (SRTM)

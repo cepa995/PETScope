@@ -116,7 +116,6 @@ def validate_settings_json(pet_image_path: str, settings_json: Dict[str, Any]) -
     
     # Step 3. Validate Frame Start Time against Frame Duration
     for i in range(0, len(frame_start_time_list)-1):
-        print(frame_duration_list[i], frame_start_time_list[i], frame_start_time_list[i+1])
         if frame_duration_list[i] + frame_start_time_list[i] != frame_start_time_list[i+1]:
             from petscope.exceptions import FrameStartTimeAndOrDurationException
             raise FrameStartTimeAndOrDurationException("There is a disagreement between "
@@ -130,10 +129,11 @@ def validate_settings_json(pet_image_path: str, settings_json: Dict[str, Any]) -
         raise PETDataUnitsException(f"Expected kBq/mL units, got {settings_json["pet_json"]["Units"]} instead")
     return True
 
-def read_settings_json() -> Dict[str, Union[int, str, List[str]]]:
+def read_settings_json(pet_image_path: str) -> Dict[str, Union[int, str, List[str]]]:
     """
     Reads settings JSON template file for PET analysis
-
+    
+    :param pet_image_path pet image based on which settings JSON is read
     :returns python dictionary of the provided settings JSON template
     """
     # Check if the path to settings JSON template exists
@@ -148,7 +148,7 @@ def read_settings_json() -> Dict[str, Union[int, str, List[str]]]:
 
     # Validate settings JSON template to make sure user did not remove or 
     # ommit any of the required keys
-    if not validate_settings_json(settings_json):
+    if not validate_settings_json(pet_image_path, settings_json):
         from petscope.exceptions import InvalidSettingsJSONTemplateFileException
         raise InvalidSettingsJSONTemplateFileException("Settings JSON File {SETTINGS_jSON}\
                 is invalid. Please double check its content")
@@ -200,6 +200,8 @@ def compute_time_activity_curve(
         template_name: str,
         reference_name: str,
         time_activity_curve_out: str,
+        frame_start_times: List[int],
+        frame_durations: List[int],
         window_length: int = None,
         polyorder: int = None
     ) -> np.array:
@@ -230,6 +232,11 @@ def compute_time_activity_curve(
     )
     reference_region_img_data = reference_region_img_nii.get_fdata().astype(np.uint8)
 
+    # Compute frame midpoint times
+    frame_start_times = np.array(frame_start_times)
+    frame_durations = np.array(frame_durations)
+    frame_midpoint_times = frame_start_times + frame_durations / 2
+
     # Load PET image
     pet_img_nii = nib.load(pet_image_path)
     pet_img_data = pet_img_nii.get_fdata()
@@ -250,7 +257,7 @@ def compute_time_activity_curve(
 
     # Plot the Time Activity Curve and save it
     plt.figure(figsize=(10, 5))
-    plt.plot(tac, marker='o', color='blue', label='Original TAC')
+    plt.plot(frame_midpoint_times, tac, marker='o', color='blue', label='Original TAC')
 
     # TAC smoothing
     smoothed_tac = None
@@ -261,10 +268,10 @@ def compute_time_activity_curve(
                     cannot be smaller then polynomial order ({polyorder})")
         print(f"\tSavitzky Golay Smoothing with WL = {window_length} and PO = {polyorder}")
         smoothed_tac = savgol_filter(tac, window_length, polyorder)
-        plt.plot(smoothed_tac, marker='x', color='red', label='Smoothed TAC', linewidth=2)
+        plt.plot(frame_midpoint_times, smoothed_tac, marker='x', color='red', label='Smoothed TAC', linewidth=2)
 
     plt.title('Time Activity Curve (TAC)')
-    plt.xlabel('Time Frame')
+    plt.xlabel('Time')
     plt.ylabel('Average Activity (kBq/mL)')
     plt.grid()
 
