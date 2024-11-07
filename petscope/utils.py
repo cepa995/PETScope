@@ -126,7 +126,7 @@ def validate_settings_json(pet_image_path: str, settings_json: Dict[str, Any]) -
     # for TAC computation
     if settings_json["pet_json"]["Units"].lower() != "kbq/ml":
         from petscope.exceptions import PETDataUnitsException
-        raise PETDataUnitsException(f"Expected kBq/mL units, got {settings_json["pet_json"]["Units"]} instead")
+        raise PETDataUnitsException(f"Expected kBq/mL units, got {settings_json['pet_json']['Units']} instead")
     return True
 
 def read_settings_json(pet_image_path: str) -> Dict[str, Union[int, str, List[str]]]:
