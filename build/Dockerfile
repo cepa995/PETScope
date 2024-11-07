@@ -49,5 +49,7 @@ RUN chmod +x /mnt/algo/tools/c3d-1.4.2/bin/c3d
 # Clone and install PETScope
 RUN git clone https://github.com/cepa995/PETScope.git && \
     cd PETScope && \
+    git submodule init && \
+    git submodule update && \
     pip3 install -e .
 ENTRYPOINT ["petscope"]
