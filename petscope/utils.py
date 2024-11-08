@@ -11,6 +11,74 @@ from typing import Any, Dict, Union, List
 from nilearn.image import mean_img, concat_imgs
 from scipy.signal import savgol_filter
 from petscope.constants import REFERENCE_REGIONS, SETTINGS_JSON
+from typing import Dict, List
+
+
+def generate_docker_run_cmd(
+    image_name: str,
+    mount_points: Dict[str, str] = None,  # https://docs.docker.com/storage/volumes/
+    volumes: Dict[str, str] = None,
+    env_variables: Dict[str, str] = None,
+    entrypoint: str = None,
+    commands: List[str] = None,
+    extra_parameters: List[str] = None,
+    gpus: int = None,
+    remove_container: bool = True
+) -> List[str]:
+    """
+    Composes a Docker run command with the provided configuration options.
+
+    :param image_name: Name of the Docker image.
+    :param mount_points: Dictionary of bind mount points with source:target format.
+    :param volumes: Dictionary of volumes to mount with source:target format.
+    :param env_variables: Dictionary of environment variables with key:value format.
+    :param entrypoint: Custom entrypoint for the Docker container.
+    :param commands: List of commands to execute within the container.
+    :param extra_parameters: List of additional parameters for the Docker run command.
+    :param gpus: Number of GPUs to allocate for the container.
+    :param remove_container: Whether to remove the container after it exits. Default is True.
+    :returns: The composed Docker run command as a list of strings.
+    """
+    docker_command = ["docker", "run"]
+
+    # Add mount points to the command if provided
+    if mount_points:
+        for src, dst in mount_points.items():
+            docker_command.extend(["--mount", f"type=bind,source={src},target={dst}"])
+
+    # Add volume mounts to the command if provided
+    if volumes:
+        for src, dst in volumes.items():
+            docker_command.extend(["--mount", f"type=volume,source={src},target={dst}"])
+
+    # Specify GPU allocation if provided
+    if gpus:
+        docker_command.extend(["--gpus", f"{gpus}"])
+
+    # Add environment variables to the command if provided
+    if env_variables:
+        for key, value in env_variables.items():
+            docker_command.extend(["-e", f"{key}={value}"])
+
+    # Specify a custom entrypoint if provided
+    if entrypoint:
+        docker_command.extend(["--entrypoint", entrypoint])
+
+    # Add the option to remove the container after it exits if set to True
+    if remove_container:
+        docker_command.extend(["--rm", image_name])
+    else:
+        docker_command.extend([image_name])
+
+    # Add commands to run inside the container if provided
+    if commands:
+        docker_command.extend(commands)
+
+    # Add any extra parameters provided to the command
+    if extra_parameters:
+        docker_command.extend(extra_parameters)
+
+    return docker_command
 
 def validate_settings_json(pet_image_path: str, settings_json: Dict[str, Any]) -> bool:
     """
