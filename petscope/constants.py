@@ -1,14 +1,21 @@
 import os
-from pathlib import Path
+
+# Docker images for running PETScope CLI
+SPM_DOCKER_IMAGE = 'stefancepa995/matlab-spm-2022b_runtime:latest'
+PET_DEP_DOCKER_IMAGE = 'stefancepa995/petscope-dependencies:latest'
 
 # Locate the PETScope-Test-Data directory relative to this file
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
 # Absolute path to settings_template.json
 SETTINGS_JSON = os.path.join(ROOT_DIR, 'settings_template.json')
+
 # Supported transformation types for ANTs registration
 SUPPORTED_ANTS_TRANSFORM_TYPES = ['Rigid', 'Affine']
+
 # Parent keys in settings JSON template
 PET_DATA = 'pet_json'
+
 # Pet data related (child) keys in settings JSON template
 REQUIRED_KEYS =  [
     "AcquisitionMode", "AttenuationCorrection", "BodyPart", "FrameDuration", 

@@ -9,12 +9,10 @@ from typing_extensions import Annotated
 from petscope import __app_name__, __version__
 from petscope.petscope import PETScope
 from petscope.utils import read_settings_json
-
-SPM_DOCKER_IMAGE = 'stefancepa995/matlab-spm-2022b_runtime:latest'
-PET_DEP_IMAGE = 'stefancepa995/petscope-dependencies:latest'
+from petscope.constants import SPM_DOCKER_IMAGE, PET_DEP_DOCKER_IMAGE
 
 def check_and_pull_docker_images():
-    docker_images = [SPM_DOCKER_IMAGE, PET_DEP_IMAGE]
+    docker_images = [SPM_DOCKER_IMAGE, PET_DEP_DOCKER_IMAGE]
     for image in docker_images:
         try:
             subprocess.check_call(["docker", "pull", image])
