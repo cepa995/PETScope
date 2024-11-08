@@ -53,3 +53,35 @@ def get_realignment_script(pet3d_volumes: List[str], output_dir: str, script_nam
         
     # Return the path to the created script
     return script_path
+
+def prepare_spm_4d_data(file_path, size):
+    """
+    Replicates output from spm_select function
+
+    :param file_path: absolute path to 4D PET image
+    :param pattern: regex pattern by which we are selecting the files
+    :return a list of PET files and their indicies such as in spm_select
+    """
+    nifti_files = [None] * size
+    for idx in range(size):
+        # SPM indexes start from 1
+        if (idx + 1) < 10:
+            nifti_files[idx] = "'" + file_path + "," + str(idx + 1) + "'\n"
+        else:
+            nifti_files[idx] = "'" + file_path + "," + str(idx + 1) + "'\n"
+    return nifti_files
+
+
+def write_matlab_file(script, name_with_ext, output_dir):
+    """
+    Write a matlab file as the output.
+
+    :param script: matlab script as a string
+    :param name_with_ext: matlab script filename with extension
+    :return matlab+_file: absolute path to matlab file
+    """
+    matlab_file_path = os.path.join(output_dir, name_with_ext)
+    with open(matlab_file_path, "w") as fp:
+        fp.write(script)
+
+    return matlab_file_path
