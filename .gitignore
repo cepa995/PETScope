@@ -3,3 +3,5 @@
 /data
 /PETScope.egg-info
 /dist
+/build/bdist.linux*
+/build/lib/

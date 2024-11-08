@@ -3,6 +3,10 @@ from setuptools import setup, find_packages
 setup(
     name='PETScope',
     version='0.1.0',
+    include_package_data=True,
+    package_data={
+        '': ['settings_template.json'],  # Include the JSON file in the package
+    },
     packages=find_packages(),
     install_requires=[
         'antspyx==0.5.3',
