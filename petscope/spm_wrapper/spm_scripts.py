@@ -1,4 +1,5 @@
 import os
+import nibabel as nib
 from typing import List
 
 def get_realignment_script(pet3d_volumes: List[str], output_dir: str, script_name: str) -> str:
@@ -54,14 +55,16 @@ def get_realignment_script(pet3d_volumes: List[str], output_dir: str, script_nam
     # Return the path to the created script
     return script_path
 
-def prepare_spm_4d_data(file_path, size):
+def prepare_spm_4d_data(file_path):
     """
     Replicates output from spm_select function
 
     :param file_path: absolute path to 4D PET image
-    :param pattern: regex pattern by which we are selecting the files
     :return a list of PET files and their indicies such as in spm_select
     """
+    nii = nib.load(file_path)
+    data = nii.get_fdata()
+    size = data.shape[3]
     nifti_files = [None] * size
     for idx in range(size):
         # SPM indexes start from 1

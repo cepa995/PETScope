@@ -69,3 +69,8 @@ class FrameStartTimeAndOrDurationException(Exception):
 class PETDataUnitsException(Exception):
     """Exception raised if PET data is not in kBq/mL Units"""
     pass
+
+# SPM Wrapper related exception
+class SPMRealignmentException(Exception):
+    """Raised during SPM Realignment in case of an exception"""
+    pass
