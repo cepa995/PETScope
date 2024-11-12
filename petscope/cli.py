@@ -10,18 +10,6 @@ from petscope import __app_name__, __version__
 from petscope.petscope import PETScope
 from petscope.system import system_check
 from petscope.utils import read_settings_json
-from petscope.constants import SPM_DOCKER_IMAGE, PET_DEP_DOCKER_IMAGE
-
-def check_and_pull_docker_images():
-    docker_images = [SPM_DOCKER_IMAGE, PET_DEP_DOCKER_IMAGE]
-    for image in docker_images:
-        print(f"[bold blue]:information:[bold blue][bold yellow] Checking for " + 
-              f"[blue]{image}[/] Docker Image")
-        try:
-            subprocess.check_call(["docker", "pull", image])
-            print(f":white_check_mark:[bold green] Successfully pulled {image}\n")
-        except subprocess.CalledProcessError as e:
-            print(f"[bold red]Failed to pull Docker image {image}: {e}\n")
 
 
 # Create explicit typer application
@@ -120,8 +108,6 @@ def run_srtm(
     """Runs SRTM Pipeline"""
     # System Check
     system_check()
-    # Check and pull Docker images
-    check_and_pull_docker_images()
     # Load PET JSON file
     pet_json = read_settings_json(pet_4d_path)
     # Get PETScope object and execute SRTM Pipeline
