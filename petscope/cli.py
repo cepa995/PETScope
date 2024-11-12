@@ -14,11 +14,13 @@ from petscope.constants import SPM_DOCKER_IMAGE, PET_DEP_DOCKER_IMAGE
 def check_and_pull_docker_images():
     docker_images = [SPM_DOCKER_IMAGE, PET_DEP_DOCKER_IMAGE]
     for image in docker_images:
+        print(f"[bold blue]:information:[bold blue][bold yellow] Checking for " + 
+              f"[blue]{image}[/] Docker Image")
         try:
             subprocess.check_call(["docker", "pull", image])
-            print(f"Successfully pulled {image}")
+            print(f":white_check_mark:[bold green] Successfully pulled {image}\n")
         except subprocess.CalledProcessError as e:
-            print(f"Failed to pull Docker image {image}: {e}")
+            print(f"[bold red]Failed to pull Docker image {image}: {e}\n")
 
 
 # Create explicit typer application

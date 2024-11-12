@@ -105,6 +105,7 @@ class PETScope:
             pet_4d_path=pet_4d_path
         )
         # Update PET 4D Path to a newly realigned image
+        print(f":zap: [bold green]Updating PET 4D path to {realignment_results[PET_REALIGN]} (SPM Realignment)")
         pet_4d_path = realignment_results[PET_REALIGN]
 
         # Convert 4D PET image to sequence of 3D volumes
