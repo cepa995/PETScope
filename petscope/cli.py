@@ -8,6 +8,7 @@ from typing import Optional, List
 from typing_extensions import Annotated
 from petscope import __app_name__, __version__
 from petscope.petscope import PETScope
+from petscope.system import system_check
 from petscope.utils import read_settings_json
 from petscope.constants import SPM_DOCKER_IMAGE, PET_DEP_DOCKER_IMAGE
 
@@ -117,6 +118,8 @@ def run_srtm(
         polynomial_order: int = typer.Option(None, "--polyorder", "-p", help="Choose Polynomial Order for Savitzky Golay TAC smoothing", rich_help_panel="Polynomial Order for Savitzky Golay TAC smoothing")
 ) -> None:
     """Runs SRTM Pipeline"""
+    # System Check
+    system_check()
     # Check and pull Docker images
     check_and_pull_docker_images()
     # Load PET JSON file
