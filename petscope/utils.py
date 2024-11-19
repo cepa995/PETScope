@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import shutil
 import nibabel as nib
 import subprocess
 import functools
@@ -13,6 +14,19 @@ from scipy.signal import savgol_filter
 from petscope.constants import REFERENCE_REGIONS, SETTINGS_JSON
 from typing import Dict, List
 
+
+def copy_file_to_directory(file_path, target_directory):
+    """
+    Copies a file to the specified target directory.
+
+    :param file_path: Absolute path of the file to be copied.
+    :param target_directory: Directory where the file should be copied.
+    :return: Absolute path to the copied file in the target directory.
+    """
+    os.makedirs(target_directory, exist_ok=True)
+    target_path = os.path.join(target_directory, os.path.basename(file_path))
+    shutil.copy(file_path, target_path)
+    return target_path
 
 def generate_docker_run_cmd(
     image_name: str,

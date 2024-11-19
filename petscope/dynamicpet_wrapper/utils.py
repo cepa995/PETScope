@@ -36,6 +36,8 @@ def generate_subject_json(subject_pet_4d_path):
     except (KeyError, ValueError) as e:
         raise PETJsonGenerationException(f"PET JSON data is not valid: {e}")
 
+    return subject_pet_json
+
 def _is_json_valid(json_object):
     """
     Validates that the JSON object has required keys with non-empty values.
