@@ -13,7 +13,8 @@ def petpvc_create_4d_mask(
         template_path: str,
         template_name: str,
         reference_name: str,
-        mask_4d_out: str
+        mask_4d_out: str,
+        debug: bool = False
     ) -> nib.Nifti1Image:
     """
     Create a 4D mask from a 3D mask and a list of desired labels.
@@ -63,7 +64,8 @@ def petpvc_create_4d_mask(
         # Save volume for visualization/debugging purposes
         mask_3d_lbl_volume_nii = nib.Nifti1Image(mask_3d_lbl_volume.astype(np.uint16), mask_3d_nii.affine)
         mask_3d_lbl_volume_path = os.path.join(dirname, f"mask_3d_volume_{lbl}.nii.gz")
-        nib.save(mask_3d_lbl_volume_nii, mask_3d_lbl_volume_path)
+        if debug:
+            nib.save(mask_3d_lbl_volume_nii, mask_3d_lbl_volume_path)
         
         mask_3d_lbl_volumes.append(mask_3d_lbl_volume_path)
     # Create and save the 4D mask required for Partial Volume Correction (PVC)
