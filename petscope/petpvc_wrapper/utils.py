@@ -3,7 +3,11 @@ import functools
 import numpy as np
 import nibabel as nib
 from rich import print
-from petscope.constants import REFERENCE_REGIONS
+from petscope.constants import REFERENCE_REGIONS, PVC_SUPPORTED_METHODS
+
+def check_if_pvc_method_is_supported(method):
+    """True if PVC method is indeed supported, False otherwise"""
+    return True if method in PVC_SUPPORTED_METHODS else False
 
 def petpvc_create_4d_mask(
         template_path: str,

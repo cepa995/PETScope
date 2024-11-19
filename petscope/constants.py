@@ -4,6 +4,9 @@ import os
 SPM_DOCKER_IMAGE = 'stefancepa995/matlab-spm-2022b_runtime:latest'
 PET_DEP_DOCKER_IMAGE = 'stefancepa995/petscope-dependencies:latest'
 
+# Partial Volume Correction (PVC) Supported Methods List
+PVC_SUPPORTED_METHODS = ['IterativeYang']
+
 # Locate the PETScope-Test-Data directory relative to this file
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 

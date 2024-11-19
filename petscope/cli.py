@@ -102,6 +102,8 @@ def run_srtm(
         template: str = typer.Option("FreeSurfer", "--tmpl", "-t", help="Choose a template (FreeSurfer)", rich_help_panel="Templates"),
         reference_region: str = typer.Option("WholeCerebellum", "--ref", "-r", help="Choose a reference region/mask (WholeCerebellum, WhiteMatter)", rich_help_panel="Reference Region"),
         model: str = typer.Option("SRTMZhou2003", "--model", "-m", help="Choose SRTM Model (SRTMZhou2003)", rich_help_panel="Available SRTM Model"),
+        pvc_method: str = typer.Option(None, "--pvc_method", "-pvc", help="Choose Partial Volume Correction Method (IterativeYang)",
+                                 rich_help_panel="Partial Volume Correction Methods"),
         window_size: int = typer.Option(None, "--window_size", "-w", help="Choose Window Size for TAC Smoothing", rich_help_panel="Window Size for Time Activity Curve Smoothing"),
         polynomial_order: int = typer.Option(None, "--polyorder", "-p", help="Choose Polynomial Order for Savitzky Golay TAC smoothing", rich_help_panel="Polynomial Order for Savitzky Golay TAC smoothing")
 ) -> None:
@@ -121,6 +123,7 @@ def run_srtm(
         reference_region=reference_region,
         output_dir=output_dir,
         model=model,
+        pvc_method=pvc_method,
         window_size=window_size,
         polynomial_order=polynomial_order,
         pet_json=pet_json

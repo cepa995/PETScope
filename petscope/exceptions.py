@@ -74,3 +74,8 @@ class PETDataUnitsException(Exception):
 class SPMRealignmentException(Exception):
     """Raised during SPM Realignment in case of an exception"""
     pass
+
+# PVC Related exceptions
+class PVCMethodSupportException(Exception):
+    """Raised when user passes PVC method which is not supported"""
+    pass
