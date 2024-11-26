@@ -2,12 +2,13 @@ import os
 import numpy as np
 from rich import print
 from typing import Dict, Any
-from petscope.constants import PVC_SUPPORTED_METHODS
+from petscope.constants import PVC_SUPPORTED_METHODS, MRI_PHYSICAL_SPACE, SUPPORTED_PHYSICAL_SPACES
 from petscope.dynamicpet_wrapper.srtm import call_srtm
 from petscope.registration import ants_registration, ants_warp_image
 from petscope.utils import compute_time_activity_curve, convert_4d_to_3d,\
-      compute_mean_volume, compute_4d_image, c3d_space_check
-from petscope.petpvc_wrapper.utils import petpvc_create_4d_mask, check_if_pvc_method_is_supported
+      compute_mean_volume, compute_4d_image, c3d_space_check, c3d_copy_transform
+from petscope.petpvc_wrapper.utils import petpvc_create_4d_mask, check_if_pvc_method_is_supported, \
+      check_if_physical_space_is_supported
 from petscope.petpvc_wrapper.petpvc import run_petpvc_iterative_yang
 from petscope.spm_wrapper.spm import spm_realignment, PET_REALIGN
 
@@ -83,6 +84,7 @@ class PETScope:
         t1_3d_path: str,
         template_path: str,
         template: str,
+        physical_space: str,
         reference_region: str,
         output_dir: str,
         model: str,
@@ -103,6 +105,11 @@ class PETScope:
             from petscope.exceptions import PVCMethodSupportException
             raise PVCMethodSupportException(f"PVC Method {pvc_method} is not supported! Please choose from " + 
                                             f"{PVC_SUPPORTED_METHODS}")
+        # Check if PVC method passed as an argument is supported
+        if physical_space and not check_if_physical_space_is_supported(physical_space):
+            from petscope.exceptions import PhysicalSpaceSupportException
+            raise PhysicalSpaceSupportException(f"Computation is not supported in {physical_space} space " + 
+                                            f" . Please choose one of the following {SUPPORTED_PHYSICAL_SPACES}")
         print("\t:white_heavy_check_mark: [bold green]INPUTS ARE VALID!")
         
         # Realignment via SPM
@@ -188,6 +195,20 @@ class PETScope:
                     z="6.0"
                 )
 
+        # In case of MRI Phyiscal space, warp all 3D PET volumes to MRI space
+        if physical_space == MRI_PHYSICAL_SPACE:
+            volume_dir = pet_3d_pvc_volume_dir if pvc_method else pet_3d_volumes_dir
+            for volume_3d in os.listdir(volume_dir):
+                volume_path = os.path.join(volume_dir, volume_3d)
+                # Warp PET 3D Volume to MR space
+                ants_warp_image(
+                    fixed_img_path=t1_3d_path,
+                    moving_img_path=volume_path,
+                    output_path=volume_path,
+                    interpolator='linear',
+                    transform_path=transformation_path
+                )
+
         # Re-compute 4D PET image from list of 3D volumes which are now in
         # RSA orientation and corrected for partial volume
         # NOTE: since we are utilizing C3D it was not possible to simply change
@@ -205,7 +226,7 @@ class PETScope:
         tac_out = os.path.join(output_dir, 'time_activity_curve.png')
         compute_time_activity_curve(
             pet_image_path=pet_4d_rsa_volume_path,
-            template_path=template_pet_space_path,
+            template_path=template_pet_space_path if physical_space and physical_space != MRI_PHYSICAL_SPACE else template_path,
             template_name=template,
             reference_name=reference_region,
             time_activity_curve_out=tac_out,
@@ -220,7 +241,7 @@ class PETScope:
         srtm_results_dir = os.path.join(output_dir, 'SRTM_RESULTS')
         call_srtm(
             pet_4d_path=pet_4d_rsa_volume_path,
-            reference_mask_path=template_pet_space_path,
+            reference_mask_path=template_pet_space_path if physical_space and physical_space != MRI_PHYSICAL_SPACE else template_path,
             output_dir=srtm_results_dir,
             model=model
         )

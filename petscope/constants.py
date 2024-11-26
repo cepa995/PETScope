@@ -1,5 +1,10 @@
 import os
 
+# Supported Physical Space constants
+SUPPORTED_PHYSICAL_SPACES = ["MRI", "PET"]
+MRI_PHYSICAL_SPACE = "MRI"
+PET_PHYSICAL_SPACE = "PET"
+
 # Docker images for running PETScope CLI
 SPM_DOCKER_IMAGE = 'stefancepa995/matlab-spm-2022b_runtime:latest'
 PET_DEP_DOCKER_IMAGE = 'stefancepa995/petscope-dependencies:latest'

@@ -17,6 +17,11 @@ class ANTsImageReadException(Exception):
     """Exception raised when image reading fails in ANTs."""
     pass
 
+class PhysicalSpaceSupportException(Exception):
+    """Exception raised when physical space specified by the user
+    is not supported by the system."""
+    pass
+
 # Dynamic PET Utilitis module related Exceptions
 class PETJsonGenerationException(Exception):
     """Exception raised when PET JSON file could not be generated due to

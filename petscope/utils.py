@@ -285,20 +285,53 @@ def compute_time_activity_curve(
         frame_start_times: List[int],
         frame_durations: List[int],
         window_length: int = None,
-        polyorder: int = None
+        polyorder: int = None,
+        debug: bool = False
     ) -> np.array:
     """
-    Computes a Time Activity Curve (TAC) over the given reference
-    region (make sure to specify one of the supported reference
-    regions).
+    Computes a Time Activity Curve (TAC) for a given reference region from a PET image.
 
-    :param pet_3d_image_path - absolute path to mean 3D or 4D PET image
-    :param template_path - absolute path to the template mask
-    :param template_name - string which represents name of a template
-     (e.g. FreeSurfer)
-    :param reference_name - string which represents name of a desired
-     reference region (e.g. WholeCerebellum)
-    :param time_activity_curve_out - absolute path to TAC out
+    This function calculates the average activity in the specified reference region for 
+    each time frame in the PET image. Optionally, it applies Savitzky-Golay smoothing to 
+    the TAC and generates a plot saved to the specified output path.
+
+    Args:
+        pet_image_path (str): Absolute path to the input 4D PET image.
+        template_path (str): Absolute path to the template mask image.
+        template_name (str): Name of the template being used (e.g., "FreeSurfer").
+        reference_name (str): Name of the reference region (e.g., "WholeCerebellum").
+        time_activity_curve_out (str): Absolute path to save the TAC plot as an image file.
+        frame_start_times (List[int]): List of start times for each PET time frame (in seconds).
+        frame_durations (List[int]): List of durations for each PET time frame (in seconds).
+        window_length (int, optional): Window size for Savitzky-Golay smoothing. Defaults to None.
+        polyorder (int, optional): Polynomial order for Savitzky-Golay smoothing. Defaults to None.
+        debug (bool, optional): If True, saves intermediate masked PET frames for debugging. Defaults to False.
+
+    Returns:
+        np.array: Computed Time Activity Curve. If smoothing is applied, the smoothed TAC is returned; otherwise, 
+                  the original TAC is returned.
+
+    Raises:
+        SavitzkyGolaySmoothingException: If `window_length` is smaller than `polyorder`.
+
+    Notes:
+        - The reference region mask is derived from the template and the specified reference name.
+        - If smoothing parameters are provided, the TAC is smoothed using the Savitzky-Golay filter.
+        - Debug mode saves intermediate masked images for each time frame to the output directory.
+
+    Example:
+        compute_time_activity_curve(
+            pet_image_path="path/to/pet_image.nii",
+            template_path="path/to/template.nii",
+            template_name="FreeSurfer",
+            reference_name="WholeCerebellum",
+            time_activity_curve_out="path/to/output/tac.png",
+            frame_start_times=[0, 60, 120],
+            frame_durations=[60, 60, 60],
+            window_length=5,
+            polyorder=3,
+            debug=True
+        )
     """
     # Create directory if it does not exist
     dirname = os.path.dirname(time_activity_curve_out)
@@ -328,8 +361,9 @@ def compute_time_activity_curve(
     for t in range(pet_img_data.shape[3]): # Looping over time-frames
         pet_time_frame = pet_img_data[:, :, :, t]
         pet_data_masked = np.multiply(pet_time_frame, reference_region_img_data)
-        pet_data_masked_nii = nib.Nifti1Image(pet_data_masked, pet_img_nii.affine)
-        nib.save(pet_data_masked_nii, os.path.join(dirname, f"pet_data_masked_{t}.nii"))
+        if debug:
+            pet_data_masked_nii = nib.Nifti1Image(pet_data_masked, pet_img_nii.affine)
+            nib.save(pet_data_masked_nii, os.path.join(dirname, f"pet_data_masked_{t}.nii"))
         average_activity = np.mean(pet_data_masked)
         print(f"\t:chart_increasing: [bold green]Average Time Activity for Frame [/]{t} [bold green]is [/]{average_activity}")
         tac.append(average_activity)
@@ -525,3 +559,19 @@ def c3d_space_check(image1_path, image2_path) -> bool:
     dim2, bb2, orient2 = extract_image_info(image2_path)
 
     return dim1 == dim2 and bb1 == bb2 and orient1 == orient2
+
+def c3d_copy_transform(src, dst) -> None:
+    """
+    Utilizes Convert3D tool to copy image header from source
+    image to the destination image
+
+    :param src: Absolute path to the source image
+    :param dst: Absolute path to the destination image
+    """
+    subprocess.run([
+        'c3d',
+        src,
+        dst,
+        '-copy-transform',
+        "-o", dst
+    ])
