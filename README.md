@@ -18,3 +18,6 @@ Steps:
 3. Execute any of the supported End-To-End PET pipelines
 
 **NOTE:** As soon as you run `petscope` CLI for the 1st time, it will automatically pull custom made Docker images which include: **PETScope dependencies** (`PVC`, `DynamicPET`) and **SPM12** (and `MATLAB 2022b runtime`)
+
+## TODO:
+1. Interactive end-to-end custom pipeline generation by chaining existing functionalities (e.g., system displays user list of possible inputs, user chooses any number of these inputs, then system based on the choosen inputs spints out to the user which of the functionalities user can chain together once he (the user) provides before mentioned inputs. Once user specifies list of functionalities he wants to chain together into a single pipeline, system will ask for user to provide required inputs and execute the pipeline)
