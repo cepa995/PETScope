@@ -72,7 +72,7 @@ class PETScope:
 
         return 0
 
-    def pet_to_t1(
+    def coregister_pet_and_mr(
         self,
         pet_4d_path: str,
         t1_3d_path: str,
@@ -95,7 +95,7 @@ class PETScope:
             int: Returns 0 upon successful completion.
 
         Example:
-            pet_to_t1(
+            coregister_pet_and_mr(
                 pet_4d_path="/path/to/pet_4d.nii",
                 t1_3d_path="/path/to/t1.nii",
                 type_of_transform="Rigid",

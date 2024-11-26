@@ -106,7 +106,7 @@ def get_tac(
 
 
 @app.command(name="pet_to_t1")
-def pet_to_t1(
+def coregister_pet_and_mr
     pet_4d_path: Annotated[str, typer.Argument(help="Absolute path to the PET 4D Image")],
     t1_3d_path: Annotated[str, typer.Argument(help="Absolute path to the T1 3D Image")],
     output_dir: Annotated[str, typer.Argument(help="Absolute path to the directory (does not have to exist), where result will be stored")],
@@ -126,7 +126,7 @@ def pet_to_t1(
     """
     petscope = get_petscope()
     print(f"\n:fire: [bold yellow]Starting PET -> T1 ANTs {type_of_transform} Registration! :fire:")
-    error_code = petscope.pet_to_t1(
+    error_code = petscope.coregister_pet_and_mr
         pet_4d_path=pet_4d_path,
         t1_3d_path=t1_3d_path,
         type_of_transform=type_of_transform,
