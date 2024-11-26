@@ -184,3 +184,12 @@ class PVCMethodSupportException(Exception):
     Correction (PVC) method that is not supported by the system.
     """
     pass
+
+class ReferenceRegionSupportException(Exception):
+    """
+    Exception raised for unsupported reference region.
+
+    This exception is triggered when the user specifies a reference region
+    used for partial volume correction that is not supported by the system.
+    """
+    pass

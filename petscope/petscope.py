@@ -2,11 +2,13 @@ import os
 import numpy as np
 from rich import print
 from typing import Dict, Any
-from petscope.constants import PVC_SUPPORTED_METHODS, MRI_PHYSICAL_SPACE, SUPPORTED_PHYSICAL_SPACES
+from petscope.constants import PVC_SUPPORTED_METHODS, MRI_PHYSICAL_SPACE, SUPPORTED_PHYSICAL_SPACES, \
+      SUPPORTED_REFERENCE_REGIONS
 from petscope.dynamicpet_wrapper.srtm import call_srtm
 from petscope.registration import ants_registration, ants_warp_image
 from petscope.utils import compute_time_activity_curve, convert_4d_to_3d,\
-      compute_mean_volume, compute_4d_image, c3d_space_check, check_if_physical_space_is_supported
+      compute_mean_volume, compute_4d_image, c3d_space_check, check_if_physical_space_is_supported, \
+      check_if_reference_region_is_supported
 from petscope.petpvc_wrapper.utils import petpvc_create_4d_mask, check_if_pvc_method_is_supported
 from petscope.petpvc_wrapper.petpvc import run_petpvc_iterative_yang
 from petscope.spm_wrapper.spm import spm_realignment, PET_REALIGN
@@ -214,11 +216,16 @@ class PETScope:
             from petscope.exceptions import PVCMethodSupportException
             raise PVCMethodSupportException(f"PVC Method {pvc_method} is not supported! Please choose from " + 
                                             f"{PVC_SUPPORTED_METHODS}")
-        # Check if PVC method passed as an argument is supported
+        # Check if physical space passed as an argument is supported
         if physical_space and not check_if_physical_space_is_supported(physical_space):
             from petscope.exceptions import PhysicalSpaceSupportException
             raise PhysicalSpaceSupportException(f"Computation is not supported in {physical_space} space " + 
                                             f" . Please choose one of the following {SUPPORTED_PHYSICAL_SPACES}")
+        # Check if reference region  passed as an argument is supported
+        if reference_region and not check_if_reference_region_is_supported(reference_region):
+            from petscope.exceptions import ReferenceRegionSupportException
+            raise ReferenceRegionSupportException(f"Specified reference region - {reference_region} is NOT supported " + 
+                                            f" . Please choose one of the following {SUPPORTED_REFERENCE_REGIONS}")
         print("\t:white_heavy_check_mark: [bold green]INPUTS ARE VALID!")
         
         # Realignment via SPM

@@ -19,6 +19,11 @@ PET_DEP_DOCKER_IMAGE = 'stefancepa995/petscope-dependencies:latest'
 # Lists the supported methods for Partial Volume Correction (PVC) used during PET image processing.
 PVC_SUPPORTED_METHODS = ['IterativeYang']
 
+# Reference Regions Used for PVC
+# ---------------------------------------
+# Lists the supported reference regions used for Partial Volume Correction (PVC)
+SUPPORTED_REFERENCE_REGIONS = ['WholeCerebellum', 'WholeWhiteMatter']
+
 # Directory Paths
 # ----------------
 # ROOT_DIR: Defines the root directory for the PETScope project.
@@ -335,6 +340,9 @@ REFERENCE_REGIONS = {
         ],
         "CerebralWhite": [
             int(key) for key, label in FREESURFER_REGIONS.items() if "-Cerebral-White-Matter" in label
+        ],
+        "WholeWhiteMatter": [
+            int(key) for key, label in FREESURFER_REGIONS.items() if "-Cerebral-White-Matter" in label or "-Cerebellum-White-Matter" in label
         ],
         "CorpusCallosum": [
             int(key) for key, label in FREESURFER_REGIONS.items() if "CC_" in label

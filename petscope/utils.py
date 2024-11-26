@@ -11,9 +11,22 @@ from rich import print
 from typing import Any, Dict, Union, List
 from nilearn.image import mean_img, concat_imgs
 from scipy.signal import savgol_filter
-from petscope.constants import REFERENCE_REGIONS, SETTINGS_JSON, SUPPORTED_PHYSICAL_SPACES
+from petscope.constants import REFERENCE_REGIONS, SETTINGS_JSON, SUPPORTED_PHYSICAL_SPACES, \
+    SUPPORTED_REFERENCE_REGIONS
 from typing import Dict, List
 
+def check_if_reference_region_is_supported(reference_region: str) -> bool:
+    """
+    Checks if computation is supported for the specified reference region.
+
+    Args:
+        reference_region (str): The name of the reference region (e.g., "WholeCerebellum",
+        "WholeWhiteMatter").
+
+    Returns:
+        bool: True if the specified reference region is supported, False otherwise.
+    """
+    return reference_region in SUPPORTED_REFERENCE_REGIONS
 
 def check_if_physical_space_is_supported(physical_space: str) -> bool:
     """

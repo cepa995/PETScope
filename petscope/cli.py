@@ -145,7 +145,7 @@ def run_srtm(
         output_dir: Annotated[str, typer.Argument(help="Directory to store the SRTM results.")],
         template: str = typer.Option("FreeSurfer", "--tmpl", "-t", help="Template to use (e.g., FreeSurfer)."),
         physical_space: str = typer.Option("MRI", "--space", "-s", help="Space for computation (MRI or PET)."),
-        reference_region: str = typer.Option("WholeCerebellum", "--ref", "-r", help="Reference region."),
+        reference_region: str = typer.Option("WholeCerebellum", "--ref", "-r", help="Reference region (WholeCerebellum, WholeWhiteMatter)."),
         model: str = typer.Option("SRTMZhou2003", "--model", "-m", help="SRTM model to use."),
         pvc_method: str = typer.Option(None, "--pvc_method", "-pvc", help="Partial Volume Correction method."),
         window_size: int = typer.Option(None, "--window_size", "-w", help="Window size for TAC smoothing."),
