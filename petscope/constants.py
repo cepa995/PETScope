@@ -1,30 +1,41 @@
 import os
 
-# Supported Physical Space constants
+# Supported Physical Spaces
+# -------------------------
+# Defines the physical spaces supported by the framework for image registration and analysis.
 SUPPORTED_PHYSICAL_SPACES = ["MRI", "PET"]
 MRI_PHYSICAL_SPACE = "MRI"
 PET_PHYSICAL_SPACE = "PET"
 
-# Docker images for running PETScope CLI
+# Docker Images
+# -------------
+# Defines the Docker images required for running the PETScope CLI, including dependencies for
+# SPM and other PETScope tools.
 SPM_DOCKER_IMAGE = 'stefancepa995/matlab-spm-2022b_runtime:latest'
 PET_DEP_DOCKER_IMAGE = 'stefancepa995/petscope-dependencies:latest'
 
-# Partial Volume Correction (PVC) Supported Methods List
+# Partial Volume Correction (PVC) Methods
+# ---------------------------------------
+# Lists the supported methods for Partial Volume Correction (PVC) used during PET image processing.
 PVC_SUPPORTED_METHODS = ['IterativeYang']
 
-# Locate the PETScope-Test-Data directory relative to this file
+# Directory Paths
+# ----------------
+# ROOT_DIR: Defines the root directory for the PETScope project.
+# SETTINGS_JSON: Absolute path to the settings JSON template file used for configuring PET processing pipelines.
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-
-# Absolute path to settings_template.json
 SETTINGS_JSON = os.path.join(ROOT_DIR, 'settings_template.json')
 
-# Supported transformation types for ANTs registration
+# ANTs Registration Transformations
+# ---------------------------------
+# Lists the types of transformations supported by the ANTs image registration framework.
 SUPPORTED_ANTS_TRANSFORM_TYPES = ['Rigid', 'Affine']
 
-# Parent keys in settings JSON template
+# JSON Template Keys
+# -------------------
+# PET_DATA: Parent key for PET-related settings in the JSON configuration template.
+# REQUIRED_KEYS: Lists all the mandatory keys in the JSON template for PET data processing.
 PET_DATA = 'pet_json'
-
-# Pet data related (child) keys in settings JSON template
 REQUIRED_KEYS =  [
     "AcquisitionMode", "AttenuationCorrection", "BodyPart", "FrameDuration", 
     "FrameTimesStart", "ImageDecayCorrected", "ImageDecayCorrectionTime", 
@@ -38,7 +49,10 @@ REQUIRED_KEYS =  [
     "TracerRadionuclide", "Units"
 ]
 
-# Template and Reference Region related constants
+# FreeSurfer Regions and Thresholds
+# ---------------------------------
+# FS_REGION_THRESHOLDS: Defines threshold values for specific FreeSurfer regions used during image analysis.
+# FREESURFER_REGIONS: Maps FreeSurfer labels to human-readable region names for both left and right hemispheres.
 FS_REGION_THRESHOLDS = {
     2: 0.911416817,
     3: 1.062319498,
@@ -155,7 +169,6 @@ FS_REGION_THRESHOLDS = {
     2017: 0.940599092,
 }
 
-# FreeSurfer Regions 
 FREESURFER_REGIONS = {
     # General and unknown regions
     "0": "Unknown",
@@ -295,10 +308,13 @@ FREESURFER_REGIONS = {
     "60001": "Cerebellar-Crus",
 }
 
-# FreeSurfer Labels Only
+# Reverse mapping of FreeSurfer region labels for quick lookups.
 FREESURFER_LABELS = {label: key for key, label in FREESURFER_REGIONS.items()}
 
-# Refernece regions supported for Dynamic PET Modeling
+# Reference Regions for Dynamic PET Modeling
+# ------------------------------------------
+# REFERENCE_REGIONS: Defines reference regions supported for dynamic PET modeling. These regions are grouped by
+# template (e.g., FreeSurfer) and further subdivided into specific reference regions.
 REFERENCE_REGIONS = {
     "FreeSurfer": {
         "BrainStem": [

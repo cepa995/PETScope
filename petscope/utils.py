@@ -11,17 +11,36 @@ from rich import print
 from typing import Any, Dict, Union, List
 from nilearn.image import mean_img, concat_imgs
 from scipy.signal import savgol_filter
-from petscope.constants import REFERENCE_REGIONS, SETTINGS_JSON
+from petscope.constants import REFERENCE_REGIONS, SETTINGS_JSON, SUPPORTED_PHYSICAL_SPACES
 from typing import Dict, List
+
+
+def check_if_physical_space_is_supported(physical_space: str) -> bool:
+    """
+    Checks if computation in the specified physical space is supported.
+
+    Args:
+        physical_space (str): The name of the physical space (e.g., "MRI", "PET").
+
+    Returns:
+        bool: True if the specified space is supported, False otherwise.
+    """
+    return physical_space in SUPPORTED_PHYSICAL_SPACES
 
 
 def copy_file_to_directory(file_path, target_directory):
     """
     Copies a file to the specified target directory.
 
-    :param file_path: Absolute path of the file to be copied.
-    :param target_directory: Directory where the file should be copied.
-    :return: Absolute path to the copied file in the target directory.
+    Args:
+        file_path (str): Absolute path of the file to be copied.
+        target_directory (str): Directory where the file should be copied.
+
+    Returns:
+        str: Absolute path to the copied file in the target directory.
+
+    Example:
+        copy_file_to_directory("/path/to/file.nii", "/target/directory/")
     """
     os.makedirs(target_directory, exist_ok=True)
     target_path = os.path.join(target_directory, os.path.basename(file_path))
@@ -42,16 +61,28 @@ def generate_docker_run_cmd(
     """
     Composes a Docker run command with the provided configuration options.
 
-    :param image_name: Name of the Docker image.
-    :param mount_points: Dictionary of bind mount points with source:target format.
-    :param volumes: Dictionary of volumes to mount with source:target format.
-    :param env_variables: Dictionary of environment variables with key:value format.
-    :param entrypoint: Custom entrypoint for the Docker container.
-    :param commands: List of commands to execute within the container.
-    :param extra_parameters: List of additional parameters for the Docker run command.
-    :param gpus: Number of GPUs to allocate for the container.
-    :param remove_container: Whether to remove the container after it exits. Default is True.
-    :returns: The composed Docker run command as a list of strings.
+    Args:
+        image_name (str): Name of the Docker image.
+        mount_points (Dict[str, str], optional): Bind mount points in source:target format.
+        volumes (Dict[str, str], optional): Docker volumes in source:target format.
+        env_variables (Dict[str, str], optional): Environment variables as key:value pairs.
+        entrypoint (str, optional): Custom entrypoint for the Docker container.
+        commands (List[str], optional): Commands to execute within the container.
+        extra_parameters (List[str], optional): Additional Docker parameters.
+        gpus (int, optional): Number of GPUs to allocate for the container.
+        remove_container (bool): Whether to remove the container after it exits. Default is True.
+
+    Returns:
+        List[str]: The composed Docker run command as a list of strings.
+
+    Example:
+        generate_docker_run_cmd(
+            image_name="my_docker_image",
+            mount_points={"/local/data": "/container/data"},
+            env_variables={"MY_VAR": "value"},
+            gpus=1,
+            commands=["python", "script.py"]
+        )
     """
     docker_command = ["docker", "run"]
 
@@ -96,12 +127,25 @@ def generate_docker_run_cmd(
 
 def validate_settings_json(pet_image_path: str, settings_json: Dict[str, Any]) -> bool:
     """
-    Validates that the input JSON-like dictionary has the required structure and
-    types according to the sample JSON template.
+    Validates the input settings JSON against a sample structure and checks PET image consistency.
 
-    :param pet_image_path: absolute path to the PET image
-    :param settings_json: JSON-like dictionary of the PET settings.
-    :returns: True if the JSON object is valid, False otherwise.
+    Args:
+        pet_image_path (str): Absolute path to the PET image.
+        settings_json (Dict[str, Any]): JSON-like dictionary of the PET settings.
+
+    Returns:
+        bool: True if the settings JSON is valid, False otherwise.
+
+    Raises:
+        SettingsJSONInvalidStructureException: If the JSON structure does not match the sample.
+        PETImageNotFoundException: If the PET image path does not exist.
+        PET3DImageException: If the PET image is not 4D.
+        FrameNumberMismatchException: If the number of PET frames does not match the JSON configuration.
+        FrameStartTimeAndOrDurationException: If frame start times and durations do not align.
+        PETDataUnitsException: If the PET image data units are not in kBq/mL.
+
+    Example:
+        validate_settings_json("/path/to/pet_image.nii", settings_json)
     """
     # Sample JSON structure with required keys and corresponding value types
     sample_json = {
@@ -213,10 +257,20 @@ def validate_settings_json(pet_image_path: str, settings_json: Dict[str, Any]) -
 
 def read_settings_json(pet_image_path: str) -> Dict[str, Union[int, str, List[str]]]:
     """
-    Reads settings JSON template file for PET analysis
-    
-    :param pet_image_path pet image based on which settings JSON is read
-    :returns python dictionary of the provided settings JSON template
+    Reads and validates the settings JSON file for PET analysis.
+
+    Args:
+        pet_image_path (str): Absolute path to the PET image.
+
+    Returns:
+        Dict[str, Union[int, str, List[str]]]: A validated dictionary of settings for PET analysis.
+
+    Raises:
+        SettingsJSONTemplateNotFoundException: If the settings JSON template is not found.
+        InvalidSettingsJSONTemplateFileException: If the settings JSON file is invalid.
+
+    Example:
+        settings = read_settings_json("/path/to/pet_image.nii")
     """
     # Check if the path to settings JSON template exists
     if not os.path.exists(SETTINGS_JSON):
@@ -246,16 +300,24 @@ def get_reference_region_mask(
         mask_out: str
     ) -> nib.Nifti1Image:
     """
-    Creates a 3D Reference Region mask 
+    Creates a 3D reference region mask from a template.
 
-    :param template_path - absolute path to the template mask
-    :param template_name - string which represents name of a template
-     (e.g. FreeSurfer)
-    :param reference_name - string which represents name of a desired
-     reference region (e.g. WholeCerebellum)
-    :param mask_out: absolute path where the resulting 3D mask will be 
-     saved
-    :returns: 3D Nifti1Image object
+    Args:
+        template_path (str): Absolute path to the template mask.
+        template_name (str): Name of the template (e.g., "FreeSurfer").
+        reference_name (str): Name of the desired reference region (e.g., "WholeCerebellum").
+        mask_out (str): Absolute path where the resulting 3D mask will be saved.
+
+    Returns:
+        nib.Nifti1Image: The created 3D reference region mask as a NIfTI image.
+
+    Example:
+        get_reference_region_mask(
+            "/path/to/template.nii",
+            "FreeSurfer",
+            "WholeCerebellum",
+            "/output/mask.nii"
+        )
     """
     reference_region_labels = REFERENCE_REGIONS[template_name][reference_name]
     # Create output directory if it doesn't exist
@@ -402,11 +464,15 @@ def compute_time_activity_curve(
 
 def change_dtype(image_path, output_path, dtype):
     """
-    Change datatype of an image.
+    Changes the data type of an image.
 
-    :param image_path: absolute path to the image which needs datatype change
-    :param output_path: absolute path to the resulting image
-    :param dtype: target datatype (e.g., char, uchar, short, ushort, int, uint)
+    Args:
+        image_path (str): Absolute path to the input image.
+        output_path (str): Absolute path to save the output image.
+        dtype (str): Target data type (e.g., "char", "float", "int").
+
+    Example:
+        change_dtype("/path/to/image.nii", "/output/image.nii", "float")
     """
     subprocess.run([
         'c3d',
@@ -418,11 +484,15 @@ def change_dtype(image_path, output_path, dtype):
 
 def change_orientation(image_path, output_path, orientation_code='RSA'):
     """
-    Change orientation of an image according to the given code (default: RSA).
+    Changes the orientation of an image according to the specified code.
 
-    :param image_path: absolute path to the image which needs orientation change
-    :param output_path: absolute path to the resulting image
-    :param orientation_code: orientation code (e.g., RSA, LPI, RAI)
+    Args:
+        image_path (str): Absolute path to the input image.
+        output_path (str): Absolute path to save the output image.
+        orientation_code (str): Orientation code (e.g., "RSA", "LPI").
+
+    Example:
+        change_orientation("/path/to/image.nii", "/output/image.nii", "LPI")
     """
     subprocess.run([
         'c3d',
@@ -434,11 +504,17 @@ def change_orientation(image_path, output_path, orientation_code='RSA'):
 
 def compute_4d_image(volume_dir, img_4d_out):
     """
-    Creates a 4D Image from a directory of 3D Volumes.
+    Creates a 4D image from a directory of 3D volumes.
 
-    :param volume_dir: absolute path to 3D volume directory
-    :param img_4d_out: absolute path to output 4D volume image
-    :returns: 4D Nifti1Image object
+    Args:
+        volume_dir (str): Directory containing 3D volume images.
+        img_4d_out (str): Absolute path to save the output 4D image.
+
+    Returns:
+        nib.Nifti1Image: The created 4D image.
+
+    Example:
+        compute_4d_image("/path/to/3d_volumes", "/output/4d_image.nii")
     """
     volumes_nii = [nib.load(os.path.join(volume_dir, f)) for f in os.listdir(volume_dir)]
     img_4d_nii = concat_imgs(volumes_nii)
@@ -448,11 +524,17 @@ def compute_4d_image(volume_dir, img_4d_out):
 
 def compute_mean_volume(volume_dir, mean_3d_out):
     """
-    Creates a mean 3D volume from a list of 3D volumes.
+    Computes the mean 3D volume from a list of 3D volumes.
 
-    :param volume_dir: absolute path to 3D volume directory
-    :param mean_3d_out: absolute path to output mean 3D volume
-    :returns: mean 3D Nifti1Image object
+    Args:
+        volume_dir (str): Directory containing 3D volume images.
+        mean_3d_out (str): Absolute path to save the mean 3D volume.
+
+    Returns:
+        nib.Nifti1Image: The computed mean 3D image.
+
+    Example:
+        compute_mean_volume("/path/to/3d_volumes", "/output/mean_image.nii")
     """
     volumes_nii = [nib.load(os.path.join(volume_dir, f)) for f in os.listdir(volume_dir)]
     mean_3d_image = mean_img(volumes_nii, volumes_nii[0].affine)
@@ -462,12 +544,18 @@ def compute_mean_volume(volume_dir, mean_3d_out):
 
 def compute_3D_volume(nifti_4d_path, output_file):
     """
-    Converts a 4D Image into a 3D Volume.
+    Converts a 4D NIfTI image into a single 3D volume by averaging over time frames.
 
-    :param nifti_4d_path: absolute path to 4D nifti image
-    :param output_file: absolute path to the output 3D volume
-    :returns: 3D Nifti1Image object
-    """
+    Args:
+        nifti_4d_path (str): Absolute path to the input 4D NIfTI image.
+        output_file (str): Absolute path to save the output 3D volume.
+
+    Returns:
+        nib.Nifti1Image: The resulting 3D image.
+
+    Example:
+        compute_3D_volume("/path/to/4d_image.nii", "/output/3d_image.nii")
+    """   
     nifti_4d = nib.load(nifti_4d_path)
     nifti_4d_data = nifti_4d.get_fdata()
     
@@ -492,12 +580,16 @@ def compute_3D_volume(nifti_4d_path, output_file):
 
 def convert_4d_to_3d(img_4d_path, img_3d_dir, prefix='pet_3d_', orientation=None):
     """
-    Convert a 4D image into a sequence of 3D volumes.
+    Converts a 4D image into a sequence of 3D volumes.
 
-    :param img_4d_path: absolute path to 4D image
-    :param img_3d_dir: directory to store the 3D volumes
-    :param prefix: prefix for 3D volume filenames
-    :param orientation: orientation code (if applicable)
+    Args:
+        img_4d_path (str): Absolute path to the 4D image.
+        img_3d_dir (str): Directory to save the 3D volumes.
+        prefix (str, optional): Prefix for the 3D volume filenames. Defaults to 'pet_3d_'.
+        orientation (str, optional): Orientation code to apply to each volume.
+
+    Example:
+        convert_4d_to_3d("/path/to/4d_image.nii", "/output/3d_volumes")
     """
     os.makedirs(img_3d_dir, exist_ok=True)
     img_4d_nii = nib.load(img_4d_path)
@@ -520,16 +612,34 @@ def convert_4d_to_3d(img_4d_path, img_3d_dir, prefix='pet_3d_', orientation=None
 
 def get_orientation(nifti_image_path) -> str:
     """
-    Check the NIfTI orientation.
-    :param nifti_image_path: absolute path to NIfTI file
-    :return: image orientation
+    Determines the orientation of a NIfTI image.
+
+    Args:
+        nifti_image_path (str): Absolute path to the NIfTI image.
+
+    Returns:
+        str: Orientation code (e.g., "RSA", "LPI").
+
+    Example:
+        orientation = get_orientation("/path/to/image.nii")
     """
     image_nii = nib.load(nifti_image_path)
     x, y, z = nib.aff2axcodes(image_nii.affine)
     return x + y + z
 
 def extract_image_info(image_path):
-    """Extracts dimension, bounding box, and orientation info from an image using c3d."""
+    """
+    Extracts dimension, bounding box, and orientation information from a NIfTI image.
+
+    Args:
+        image_path (str): Absolute path to the NIfTI image.
+
+    Returns:
+        Tuple[List[float], List[List[float]], str]: Dimensions, bounding box, and orientation.
+
+    Example:
+        dim, bb, orient = extract_image_info("/path/to/image.nii")
+    """
     c3d_info_cmd = ["c3d", image_path, "-info"]
     result = subprocess.run(c3d_info_cmd, capture_output=True, text=True)
     info = result.stdout
@@ -548,12 +658,17 @@ def extract_image_info(image_path):
 
 def c3d_space_check(image1_path, image2_path) -> bool:
     """
-    Utilizes Convert3D tool to get image information,
-    parse it, and check if the two images belong to the same space.
+    Checks whether two images share the same space using C3D.
 
-    :param image1_path: Absolute path to the 1st image
-    :param image2_path: Absolute path to the 2nd image
-    :returns: True if images are in the same space, False otherwise
+    Args:
+        image1_path (str): Absolute path to the first image.
+        image2_path (str): Absolute path to the second image.
+
+    Returns:
+        bool: True if the images share the same space, False otherwise.
+
+    Example:
+        same_space = c3d_space_check("/path/to/image1.nii", "/path/to/image2.nii")
     """
     dim1, bb1, orient1 = extract_image_info(image1_path)
     dim2, bb2, orient2 = extract_image_info(image2_path)
@@ -562,11 +677,14 @@ def c3d_space_check(image1_path, image2_path) -> bool:
 
 def c3d_copy_transform(src, dst) -> None:
     """
-    Utilizes Convert3D tool to copy image header from source
-    image to the destination image
+    Copies the image transform (header) from a source image to a destination image using C3D.
 
-    :param src: Absolute path to the source image
-    :param dst: Absolute path to the destination image
+    Args:
+        src (str): Absolute path to the source image.
+        dst (str): Absolute path to the destination image.
+
+    Example:
+        c3d_copy_transform("/path/to/source.nii", "/path/to/destination.nii")
     """
     subprocess.run([
         'c3d',

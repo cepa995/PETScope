@@ -11,26 +11,52 @@ def run_petpvc_iterative_yang(
         z: str = "6.0"
 ) -> None:
     """
-    Executes Partial Volume Correction using Iterative Yang method 
-    (implemented by UCL/PETVC)
+    Executes Partial Volume Correction (PVC) using the Iterative Yang method.
 
-    :param pet_3d_volume_path - absolute path to 3D volume 
-    :param pet_4d_mask_path - absolute path to 4D mask which is constructed
-     based on the information provided in UCL/PETPVC documentation 
-     (https://github.com/cepa995/PETPVC)
-    :param pet_3d_volume_pvc_path - absolute path to PVC volume
-    :param x Point Spread Function (PSF) resultion in millimeters along x axis
-    :param y Point Spread Function (PSF) resultion in millimeters along y axis
-    :param z Point Spread Function (PSF) resultion in millimeters along z axis
+    This function uses the `PETPVC` package from UCL to perform PVC on a given 3D PET volume
+    using the Iterative Yang method. It requires a 4D mask and the Point Spread Function (PSF) 
+    resolution parameters along the x, y, and z axes.
+
+    Args:
+        pet_3d_volume_path (str): Absolute path to the input 3D PET volume file.
+        pet_4d_mask_path (str): Absolute path to the 4D mask file, constructed as per 
+                                the PETPVC documentation.
+        pet_3d_volume_pvc_path (str): Absolute path where the PVC-corrected 3D volume will be saved.
+        x (str, optional): PSF resolution along the x-axis in millimeters. Default is "6.0".
+        y (str, optional): PSF resolution along the y-axis in millimeters. Default is "6.0".
+        z (str, optional): PSF resolution along the z-axis in millimeters. Default is "6.0".
+
+    Returns:
+        None
+
+    Raises:
+        Exception: If the PETPVC process fails to execute.
+
+    Example:
+        run_petpvc_iterative_yang(
+            pet_3d_volume_path="/path/to/3d_volume.nii",
+            pet_4d_mask_path="/path/to/4d_mask.nii",
+            pet_3d_volume_pvc_path="/path/to/output_pvc_volume.nii",
+            x="5.0",
+            y="5.0",
+            z="5.0"
+        )
+
+    Notes:
+        - The Iterative Yang method is part of the PETPVC software package.
+        - For more details, see the PETPVC documentation: https://github.com/UCL/PETPVC
     """
-    # Run PET Partial Volume Correction iterative Yang method (UCL/PETPVC)
+    # Command to execute PETPVC with the Iterative Yang method
     command_petpvc_iterative_yang = [
         'petpvc', "-i", pet_3d_volume_path,
         "-m", pet_4d_mask_path, "-o", pet_3d_volume_pvc_path,
         "--pvc", "IY", "-x", x, "-y", y, "-z", z
     ]
     try:
-        subprocess.run(command_petpvc_iterative_yang)
+        # Run the PETPVC command
+        subprocess.run(command_petpvc_iterative_yang, check=True)
     except Exception as err:
-        raise Exception(err)
+        raise Exception(f"Error executing PETPVC Iterative Yang method: {err}")
+    
+    # Print success message
     print("\t:white_heavy_check_mark: [bold green]SUCCESS! ")

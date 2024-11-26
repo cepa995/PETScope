@@ -11,6 +11,18 @@ from rich.text import Text
 from petscope.constants import SPM_DOCKER_IMAGE, PET_DEP_DOCKER_IMAGE
 
 def check_and_pull_docker_images():
+    """
+    Checks for the availability of required Docker images and pulls them if they are not found.
+
+    This function iterates over a list of pre-defined Docker images and attempts to pull them
+    using the Docker CLI. Any errors during the process are logged.
+
+    Raises:
+        subprocess.CalledProcessError: If the Docker pull command fails for any image.
+
+    Example:
+        check_and_pull_docker_images()
+    """
     render_docker_logo()
     docker_images = [SPM_DOCKER_IMAGE, PET_DEP_DOCKER_IMAGE]
     for image in docker_images:
@@ -23,7 +35,15 @@ def check_and_pull_docker_images():
             print(f"[bold red]Failed to pull Docker image {image}: {e}\n")
 
 def render_docker_logo():
-    # Create a representation of the Docker logo using text
+    """
+    Displays a text-based representation of the Docker logo along with status messages for pulling Docker images.
+
+    This function creates a panel containing the Docker logo and formatted status messages,
+    simulating the output of a Docker pull process. It uses the `rich` library for enhanced output formatting.
+
+    Example:
+        render_docker_logo()
+    """
     logo = r"""
                      ##         .
                ## ## ##        ==
@@ -34,7 +54,7 @@ def render_docker_logo():
          \    \        __/
           \____\______/
     """
-# Simulated docker image names for demonstration purposes
+    # Simulated docker image names for demonstration purposes
     docker_images = ["SPM_DOCKER_IMAGE", "PET_DEP_DOCKER_IMAGE"]
 
     # Create a console to capture and format output
@@ -66,7 +86,15 @@ def render_docker_logo():
 
 def system_check():
     """
-    Checks and prints the operating system details and runs the virtualization check.
+    Checks the system's operating system details and verifies if virtualization is enabled.
+
+    This function gathers and displays system information such as the operating system name, version,
+    and release, along with the virtualization status. It uses the `rich` library to format the output as a table.
+
+    The function also calls `render_docker_logo` to display the Docker logo and related messages.
+
+    Example:
+        system_check()
     """
     # Get OS information
     os_name = platform.system()
@@ -90,7 +118,23 @@ def system_check():
 
 def check_virtualization():
     """
-    Checks if virtualization is enabled on the current system.
+    Determines whether virtualization is enabled on the current system.
+
+    This function checks for virtualization support based on the operating system:
+    - On Windows: Uses the `systeminfo` command to detect virtualization in the firmware.
+    - On Linux: Uses the `lscpu` command to check for virtualization features (e.g., VT-x or AMD-V).
+
+    Returns:
+        bool: True if virtualization is enabled, False otherwise.
+
+    Raises:
+        subprocess.CalledProcessError: If a required command fails to execute.
+        FileNotFoundError: If a required utility (e.g., `systeminfo`, `lscpu`) is not found.
+        PermissionError: If the script lacks sufficient privileges to execute a required command.
+
+    Example:
+        is_virtualization_enabled = check_virtualization()
+        print(f"Virtualization Enabled: {is_virtualization_enabled}")
     """
     os_name = platform.system()
     try:
@@ -145,7 +189,3 @@ def check_virtualization():
         print("[bold red]Required command not found. Ensure the necessary utilities are installed.[/]")
     except PermissionError:
         print("[bold red]Permission denied. Try running the script with elevated privileges.[/]")
-
-# Run the system check function
-if __name__ == "__main__":
-    system_check()

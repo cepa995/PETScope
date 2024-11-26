@@ -1,7 +1,6 @@
 """This module provides the PETScope CLI"""
 
 import typer
-import subprocess
 import numpy as np
 from rich import print
 from typing import Optional, List
@@ -12,15 +11,23 @@ from petscope.system import system_check
 from petscope.utils import read_settings_json
 
 
-# Create explicit typer application
+# Initialize Typer Application
+# -----------------------------
+# The main Typer application is defined, which will serve as the entry point
+# for all CLI commands provided by PETScope.
 app = typer.Typer()
 
 def _version_callback(value: bool) -> None:
     """
     Version Callback
-    
-    :param value - whether or not to print application's
-     name and version using echo()
+
+    Prints the application's name and version when the --version/-v option is provided.
+
+    Args:
+        value (bool): Whether to print the version and exit.
+
+    Raises:
+        typer.Exit: Exits the CLI after printing the version information.
     """
     if value:
         typer.echo(f"{__app_name__} v{__version__}")
@@ -37,9 +44,20 @@ def main(
         is_eager=True,
     )
 ) -> None:
+    """
+    PETScope CLI Main Entry Point.
+
+    Provides a version option for displaying the application version.
+    """
     return
 
 def get_petscope() -> PETScope:
+    """
+    Returns an instance of the PETScope class.
+
+    This function is a helper to ensure consistent initialization
+    of the PETScope object across commands.
+    """
     return PETScope()
 
 @app.command(name="compute_tac")
@@ -52,8 +70,24 @@ def get_tac(
     reference_name: str = typer.Option(None, "--reference", "-r", help="Choose one of the Supported Reference Region (WholeCerebellum, WhiteMatter)", rich_help_panel="Supported Reference Regions"),
     template_name: str = typer.Option(None, "--template", "-t", help="Choose name of the Template which was passed under template_path argument (FreeSurfer)", rich_help_panel="Supported Templates"),
 ) -> np.array:
-    """Computes Time Activity Curve (TAC) over the specified
-    reference region"""
+    """
+    Computes Time Activity Curve (TAC).
+
+    Calculates the TAC over the specified reference region using the provided PET 4D image,
+    template, and optional smoothing parameters.
+
+    Args:
+        pet_image_path (str): Absolute path to the PET 4D image.
+        template_path (str): Absolute path to the template image.
+        time_activity_curve_out (str): Absolute path to save the TAC plot (.png).
+        window_size (int, optional): Window size for TAC smoothing. Defaults to None.
+        polynomial_order (int, optional): Polynomial order for TAC smoothing. Defaults to None.
+        reference_name (str, optional): Name of the reference region. Defaults to None.
+        template_name (str, optional): Name of the template. Defaults to None.
+
+    Returns:
+        np.array: Computed TAC.
+    """
     print(f":gear: [bold green]Computing Time Activity Curve (TAC) over the {reference_name}")
     petscope = get_petscope()
     error_code = petscope.get_tac(
@@ -78,8 +112,18 @@ def pet_to_t1(
     output_dir: Annotated[str, typer.Argument(help="Absolute path to the directory (does not have to exist), where result will be stored")],
     type_of_transform: str = typer.Option("Rigid", "--transform", "-t", help="Choose Transformation Type (Rigid, Affine, SyN)", rich_help_panel="Transformation Types"),
 ) -> None:
-    """Computes a mean 3D volume from a given 4D PET image and registers it using ANTs
-    to T1 space"""
+    """
+    Registers a 4D PET image to T1 space.
+
+    Computes a mean 3D volume from the provided 4D PET image and performs image registration
+    using ANTs to align it with the T1 image.
+
+    Args:
+        pet_4d_path (str): Absolute path to the PET 4D image.
+        t1_3d_path (str): Absolute path to the T1 3D image.
+        output_dir (str): Directory to store the registration results.
+        type_of_transform (str): Transformation type (Rigid, Affine, SyN). Defaults to "Rigid".
+    """
     petscope = get_petscope()
     print(f"\n:fire: [bold yellow]Starting PET -> T1 ANTs {type_of_transform} Registration! :fire:")
     error_code = petscope.pet_to_t1(
@@ -97,23 +141,42 @@ def pet_to_t1(
 def run_srtm(
         pet_4d_path: Annotated[str, typer.Argument(help="Absolute path to the PET 4D Image")],
         t1_3d_path: Annotated[str, typer.Argument(help="Absolute path to the T1 3D Image")],
-        template_path: Annotated[str, typer.Argument(help="Absolute path to the Template (e.g. FreeSurfer) Mask in T1 Space")],
-        output_dir: Annotated[str, typer.Argument(help="Absolute path to the directory (does not have to exist), where result will be stored")],
-        template: str = typer.Option("FreeSurfer", "--tmpl", "-t", help="Choose a template (FreeSurfer)", rich_help_panel="Templates"),
-        physical_space: str = typer.Option("MRI", "--space", "-s", help="Choose a space where computation will take place (MR (default), PET)", rich_help_panel="Physical Space"),
-        reference_region: str = typer.Option("WholeCerebellum", "--ref", "-r", help="Choose a reference region/mask (WholeCerebellum, WhiteMatter)", rich_help_panel="Reference Region"),
-        model: str = typer.Option("SRTMZhou2003", "--model", "-m", help="Choose SRTM Model (SRTMZhou2003)", rich_help_panel="Available SRTM Model"),
-        pvc_method: str = typer.Option(None, "--pvc_method", "-pvc", help="Choose Partial Volume Correction Method (IterativeYang)",
-                                 rich_help_panel="Partial Volume Correction Methods"),
-        window_size: int = typer.Option(None, "--window_size", "-w", help="Choose Window Size for TAC Smoothing", rich_help_panel="Window Size for Time Activity Curve Smoothing"),
-        polynomial_order: int = typer.Option(None, "--polyorder", "-p", help="Choose Polynomial Order for Savitzky Golay TAC smoothing", rich_help_panel="Polynomial Order for Savitzky Golay TAC smoothing")
+        template_path: Annotated[str, typer.Argument(help="Absolute path to the Template Mask in T1 Space")],
+        output_dir: Annotated[str, typer.Argument(help="Directory to store the SRTM results.")],
+        template: str = typer.Option("FreeSurfer", "--tmpl", "-t", help="Template to use (e.g., FreeSurfer)."),
+        physical_space: str = typer.Option("MRI", "--space", "-s", help="Space for computation (MRI or PET)."),
+        reference_region: str = typer.Option("WholeCerebellum", "--ref", "-r", help="Reference region."),
+        model: str = typer.Option("SRTMZhou2003", "--model", "-m", help="SRTM model to use."),
+        pvc_method: str = typer.Option(None, "--pvc_method", "-pvc", help="Partial Volume Correction method."),
+        window_size: int = typer.Option(None, "--window_size", "-w", help="Window size for TAC smoothing."),
+        polynomial_order: int = typer.Option(None, "--polyorder", "-p", help="Polynomial order for TAC smoothing."),
 ) -> None:
-    """Runs SRTM Pipeline"""
-    # System Check
+    """
+    Runs the Simplified Reference Tissue Model (SRTM) Pipeline.
+
+    This command performs SRTM analysis on a 4D PET image using specified templates,
+    reference regions, and models. Partial Volume Correction (PVC) is optional.
+
+    Args:
+        pet_4d_path (str): Absolute path to the PET 4D image.
+        t1_3d_path (str): Absolute path to the T1 3D image.
+        template_path (str): Absolute path to the template mask in T1 space.
+        output_dir (str): Directory to store the SRTM results.
+        template (str): Template to use (e.g., FreeSurfer). Defaults to "FreeSurfer".
+        physical_space (str): Space for computation (MRI or PET). Defaults to "MRI".
+        reference_region (str): Reference region to use. Defaults to "WholeCerebellum".
+        model (str): SRTM model to use. Defaults to "SRTMZhou2003".
+        pvc_method (str, optional): Partial Volume Correction method. Defaults to None.
+        window_size (int, optional): Window size for TAC smoothing. Defaults to None.
+        polynomial_order (int, optional): Polynomial order for TAC smoothing. Defaults to None.
+    """
+    # Perform a system check before running the pipeline
     system_check()
-    # Load PET JSON file
+
+    # Load PET settings from the JSON configuration
     pet_json = read_settings_json(pet_4d_path)
-    # Get PETScope object and execute SRTM Pipeline
+
+    # Initialize PETScope and execute the SRTM pipeline
     petscope = get_petscope()
     print("\n:fire: [bold yellow]Starting Simplified Tissue Model (SRTM) Pipeline! :fire:")
     error_code = petscope.run_srtm(

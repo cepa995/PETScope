@@ -6,14 +6,22 @@ from petscope.constants import PVC_SUPPORTED_METHODS, MRI_PHYSICAL_SPACE, SUPPOR
 from petscope.dynamicpet_wrapper.srtm import call_srtm
 from petscope.registration import ants_registration, ants_warp_image
 from petscope.utils import compute_time_activity_curve, convert_4d_to_3d,\
-      compute_mean_volume, compute_4d_image, c3d_space_check, c3d_copy_transform
-from petscope.petpvc_wrapper.utils import petpvc_create_4d_mask, check_if_pvc_method_is_supported, \
-      check_if_physical_space_is_supported
+      compute_mean_volume, compute_4d_image, c3d_space_check, check_if_physical_space_is_supported
+from petscope.petpvc_wrapper.utils import petpvc_create_4d_mask, check_if_pvc_method_is_supported
 from petscope.petpvc_wrapper.petpvc import run_petpvc_iterative_yang
 from petscope.spm_wrapper.spm import spm_realignment, PET_REALIGN
 
 class PETScope:
     def __init__(self) -> None:
+        """
+        Initializes the PETScope class.
+
+        This class provides methods to process PET images, including:
+        - Generating time-activity curves (TACs)
+        - Registering PET images to T1 images
+        - Performing partial volume correction (PVC)
+        - Running the Simplified Reference Tissue Model (SRTM) pipeline
+        """
         pass
 
     def get_tac(
@@ -26,6 +34,32 @@ class PETScope:
         window_length: int = None,
         polyorder: int = None
     ) -> np.array:
+        """
+        Computes the Time Activity Curve (TAC) for a given reference region.
+
+        Args:
+            pet_image_path (str): Absolute path to the input PET image.
+            template_path (str): Absolute path to the reference template image.
+            template_name (str): Name of the template (e.g., "FreeSurfer").
+            reference_name (str): Name of the reference region (e.g., "WholeCerebellum").
+            time_activity_curve_out (str): Absolute path to save the output TAC plot.
+            window_length (int, optional): Length of the window for Savitzky-Golay smoothing. Default is None.
+            polyorder (int, optional): Polynomial order for Savitzky-Golay smoothing. Default is None.
+
+        Returns:
+            np.array: The computed TAC, optionally smoothed if parameters are provided.
+
+        Example:
+            tac = get_tac(
+                pet_image_path="/path/to/pet_image.nii",
+                template_path="/path/to/template.nii",
+                template_name="FreeSurfer",
+                reference_name="WholeCerebellum",
+                time_activity_curve_out="/path/to/output/tac.png",
+                window_length=5,
+                polyorder=3
+            )
+        """
         _, _ = compute_time_activity_curve(
             pet_image_path=pet_image_path,
             template_path=template_path,
@@ -45,6 +79,29 @@ class PETScope:
         type_of_transform: str,
         output_dir: str
     ) -> int:
+        """
+        Registers a PET image to a T1 image using ANTs.
+
+        This method splits the 4D PET image into 3D volumes, computes the mean PET volume,
+        and registers the mean PET image to the T1 image using the specified transformation type.
+
+        Args:
+            pet_4d_path (str): Absolute path to the input 4D PET image.
+            t1_3d_path (str): Absolute path to the input T1 image.
+            type_of_transform (str): Type of transformation to perform (e.g., "Rigid", "Affine").
+            output_dir (str): Directory to save the registration results.
+
+        Returns:
+            int: Returns 0 upon successful completion.
+
+        Example:
+            pet_to_t1(
+                pet_4d_path="/path/to/pet_4d.nii",
+                t1_3d_path="/path/to/t1.nii",
+                type_of_transform="Rigid",
+                output_dir="/path/to/output"
+            )
+        """
         # Convert 4D PET image to sequence of 3D volumes
         print(":gear: STEP 1. [bold green]Converting 4D PET to Sequence of 3D Volumes")
         pet_3d_volumes_dir = os.path.join(output_dir, "pet_3d_volumes")
@@ -93,6 +150,58 @@ class PETScope:
         polynomial_order: int,
         pet_json: Dict[str, Any]
     ):
+        """
+        Executes the Simplified Reference Tissue Model (SRTM) pipeline on PET data.
+
+        This pipeline includes:
+        - Validating input arguments
+        - Realigning PET images
+        - Registering PET images to T1 images
+        - Performing partial volume correction (PVC)
+        - Computing the Time Activity Curve (TAC)
+        - Running the SRTM model
+
+        Args:
+            pet_4d_path (str): Absolute path to the input 4D PET image.
+            t1_3d_path (str): Absolute path to the input T1 MRI image.
+            template_path (str): Absolute path to the reference template image.
+            template (str): Name of the reference template.
+            physical_space (str): Target physical space for the output (e.g., "MRI_PHYSICAL_SPACE").
+            reference_region (str): Name of the reference region for TAC computation (e.g., "WholeCerebellum").
+            output_dir (str): Directory to save all pipeline results.
+            model (str): SRTM model type to use.
+            pvc_method (str): Partial volume correction method (e.g., "Iterative Yang").
+            window_size (int): Length of the window for Savitzky-Golay smoothing during TAC computation.
+            polynomial_order (int): Polynomial order for Savitzky-Golay smoothing during TAC computation.
+            pet_json (Dict[str, Any]): Dictionary containing PET metadata (e.g., frame times, durations).
+
+        Returns:
+            int: Returns 0 upon successful completion.
+
+        Raises:
+            NotSamePhysicalSpaceException: If the T1 and template images are not in the same space.
+            PVCMethodSupportException: If the specified PVC method is not supported.
+            PhysicalSpaceSupportException: If the specified physical space is not supported.
+
+        Example:
+            run_srtm(
+                pet_4d_path="/path/to/pet_4d.nii",
+                t1_3d_path="/path/to/t1.nii",
+                template_path="/path/to/template.nii",
+                template="FreeSurfer",
+                physical_space="MRI_PHYSICAL_SPACE",
+                reference_region="WholeCerebellum",
+                output_dir="/path/to/output",
+                model="SRTM",
+                pvc_method="Iterative Yang",
+                window_size=5,
+                polynomial_order=3,
+                pet_json={
+                    "FrameTimesStart": [0, 60, 120],
+                    "FrameDuration": [60, 60, 60]
+                }
+            )
+        """
         print(":gear: STEP 0. [bold green]Validating Input Arguments")
         # Check if T1 image and Template image are in the same space
         if not c3d_space_check(template_path, t1_3d_path):
