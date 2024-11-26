@@ -95,7 +95,7 @@ class PETScope:
             int: Returns 0 upon successful completion.
 
         Example:
-            coregister_pet_and_mr(
+            coregister_pet_and_mr((
                 pet_4d_path="/path/to/pet_4d.nii",
                 t1_3d_path="/path/to/t1.nii",
                 type_of_transform="Rigid",
