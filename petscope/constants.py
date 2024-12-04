@@ -1,5 +1,25 @@
 import os
 
+# Custom Pipeline constants
+# -------------------------
+# Defines dictionary for supported commands which can be used to create custom pipeline
+# and a dictionary which maps these commands to specific functions within the toolbox
+CUSTOM_PIPELINE_COMMAND_DICT= {
+    "Coregister PET to MRI (and vice-versa)": "Adding Coregistration of the PET native to MRI (and vice versa) space to the pipeline",
+    "PET Specific Commands": {
+        "SPM Realignment": "Adding SPM Realignment step of the PET native image to the pipeline",
+        "Partial Volume Correction (PVC)": "Adding Partial Volume Correction (PVC) step to the pipeline",
+        "Compute PET Mean Image": "Adding Mean image computation to the pipeline",
+        "Compute Time Activity Curve": "Adding Time Activity Curve (TAC) computation to the pipeline",
+    },
+    "MRI Mask Template Specific Commands": {
+        "Compute Reference Mask": "Adding Reference Mask computation to the pipeline",
+    },
+}
+CUSTOM_PIPELINE_FUNCTION_DICT = {
+
+}
+
 # Supported Physical Spaces
 # -------------------------
 # Defines the physical spaces supported by the framework for image registration and analysis.

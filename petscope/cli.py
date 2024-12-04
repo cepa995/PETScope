@@ -3,7 +3,7 @@
 import typer
 import numpy as np
 from rich import print
-from typing import Optional, List
+from typing import Optional
 from typing_extensions import Annotated
 from petscope import __app_name__, __version__
 from petscope.petscope import PETScope
@@ -197,3 +197,10 @@ def run_srtm(
         print(":x: [bold red]SRTM Pipeline Was NOT Successful! ")
     else:
         print(":white_heavy_check_mark: [bold green]SRTM Pipeline Ran Successfully! ")
+
+
+@app.command(name="run_custom_pipeline")
+def run_custom_pipeline() -> None:
+    # Initialize PETScope and execute the SRTM pipeline
+    petscope = get_petscope()
+    petscope.custom_pipeline()
