@@ -11,7 +11,7 @@ from rich import print
 from typing import Any, Dict, Union, List
 from nilearn.image import mean_img, concat_imgs
 from scipy.signal import savgol_filter
-from petscope.constants import REFERENCE_REGIONS, SETTINGS_JSON, SUPPORTED_PHYSICAL_SPACES, \
+from petscope.constants import REFERENCE_REGIONS, TARGET_REGIONS, SETTINGS_JSON, SUPPORTED_PHYSICAL_SPACES, \
     SUPPORTED_REFERENCE_REGIONS
 from typing import Dict, List
 
@@ -351,6 +351,100 @@ def get_reference_region_mask(
     # Return Nifti image as a result
     return masked_image_nii
 
+def get_target_region_mask(
+        template_path: str,
+        template_name: str,
+        target_name: str,
+        mask_out: str
+    ) -> nib.Nifti1Image:
+    """
+    Creates a 3D target region mask from a template.
+
+    Args:
+        template_path (str): Absolute path to the template mask.
+        template_name (str): Name of the template (e.g., "FreeSurfer").
+        target_name (str): Name of the desired target region (e.g., "WholeCerebellum").
+        mask_out (str): Absolute path where the resulting 3D mask will be saved.
+
+    Returns:
+        nib.Nifti1Image: The created 3D target region mask as a NIfTI image.
+
+    Example:
+        get_reference_region_mask(
+            "/path/to/template.nii",
+            "FreeSurfer",
+            "WholeCerebellum",
+            "/output/mask.nii"
+        )
+    """
+    target_region_labels = TARGET_REGIONS[template_name][target_name]
+    # Create output directory if it doesn't exist
+    dirname = os.path.dirname(mask_out)
+    os.makedirs(dirname, exist_ok=True)
+
+    # Load the 3D mask data
+    mask_3d_nii = nib.load(template_path)
+    mask_3d_data = mask_3d_nii.get_fdata().astype(np.uint16)
+
+    # Create a binary mask that combines all labels
+    mask = functools.reduce(np.logical_or, (mask_3d_data == lbl for lbl in target_region_labels))
+    masked_image = np.where(mask, mask_3d_data, 0)
+    masked_image[masked_image != 0] = 1
+    masked_image_nii = nib.Nifti1Image(masked_image.astype(np.uint8), mask_3d_nii.affine)
+    nib.save(masked_image_nii, mask_out)
+
+    # Return Nifti image as a result
+    return masked_image_nii
+
+def c3d_binarize_image(
+        image_path: str,
+        output_path: str,
+) -> None:
+    """
+    Performs binary threhsold over the input image using C3D
+
+    Args:
+        image_path (str): Absolute path to the input image.
+        output_path (str): Absolute path to save the output image.
+    Example:
+        c3d_binarize_image("/path/to/image.nii", "/output/image_binary.nii")
+    """
+    # Define C3D command
+    command_thresh = [
+        "c3d",
+        image_path,
+        "-thresh", "1", "inf", "1", "0",
+        "-o", output_path
+    ]
+    # Threshold the image (binary)
+    subprocess.run(command_thresh)
+
+def c3d_compute_statistics(
+        image_path: str,
+        mask_path: str,
+        output_path: str,
+) -> None:
+    """
+    Computes basic image statistics utilizing C3D's lstat option
+
+    Args:
+        image_path (str): Absolute path to the input image.
+        mask_path (str): Absolute path to the input mask.
+        output_path (str): Absolute path to the statistics file.
+    Example:
+        c3d_compute_statistics("/path/to/image.nii", "/output/image_binary.nii", "/output/stats.txt")
+    """
+    # Define C3D command
+    command_lstat = [
+        "c3d",
+        image_path,
+        mask_path,
+        "-lstat"
+    ]
+    # Threshold the image (binary)
+    subprocess.run(command_lstat)
+
+
 def compute_time_activity_curve(
         pet_image_path: str,
         template_path: str,
@@ -413,7 +507,7 @@ def compute_time_activity_curve(
     os.makedirs(dirname, exist_ok=True)
 
     # Get Reference Region/Mask
-    reference_mask_path = os.path.join(dirname, "reference_mask.nii")
+    reference_mask_path = os.path.join(dirname, f"{reference_name}_mask.nii")
     reference_region_img_nii = get_reference_region_mask(
         template_path=template_path,
         template_name=template_name,

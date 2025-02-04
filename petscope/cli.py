@@ -146,6 +146,7 @@ def run_srtm(
         template: str = typer.Option("FreeSurfer", "--tmpl", "-t", help="Template to use (e.g., FreeSurfer)."),
         physical_space: str = typer.Option("MRI", "--space", "-s", help="Space for computation (MRI or PET)."),
         reference_region: str = typer.Option("WholeCerebellum", "--ref", "-r", help="Reference region (WholeCerebellum, WholeWhiteMatter)."),
+        target_region: str = typer.Option("Hippocampus", "--target", "-tar", help="Reference region (Hippocampus)."),
         model: str = typer.Option("SRTMZhou2003", "--model", "-m", help="SRTM model to use."),
         pvc_method: str = typer.Option(None, "--pvc_method", "-pvc", help="Partial Volume Correction method."),
         window_size: int = typer.Option(None, "--window_size", "-w", help="Window size for TAC smoothing."),
@@ -165,6 +166,7 @@ def run_srtm(
         template (str): Template to use (e.g., FreeSurfer). Defaults to "FreeSurfer".
         physical_space (str): Space for computation (MRI or PET). Defaults to "MRI".
         reference_region (str): Reference region to use. Defaults to "WholeCerebellum".
+        target_region (str): Target region to use. Defaults to "Hippocampus".
         model (str): SRTM model to use. Defaults to "SRTMZhou2003".
         pvc_method (str, optional): Partial Volume Correction method. Defaults to None.
         window_size (int, optional): Window size for TAC smoothing. Defaults to None.
@@ -186,6 +188,7 @@ def run_srtm(
         template_path=template_path,
         physical_space=physical_space,
         reference_region=reference_region,
+        target_region=target_region,
         output_dir=output_dir,
         model=model,
         pvc_method=pvc_method,

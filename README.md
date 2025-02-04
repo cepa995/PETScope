@@ -21,3 +21,9 @@ Steps:
 
 ## TODO:
 1. Interactive end-to-end custom pipeline generation by chaining existing functionalities (e.g., system displays user list of possible inputs, user chooses any number of these inputs, then system based on the choosen inputs spints out to the user which of the functionalities user can chain together once he (the user) provides before mentioned inputs. Once user specifies list of functionalities he wants to chain together into a single pipeline, system will ask for user to provide required inputs and execute the pipeline)
+ - Ask if you are performing single subject analysis, or are you analyzing entire study
+ - Ask what type of analysis you are doing (e.g. Kinetic Modeling)
+ - Build a pipeline (based on the above the settings.json is created for either 1x sub or entire study and a list of available options is being shown to the user)
+
+ ## Sample Command Line:
+ petscope run_srtm /neuro/stefan/workspace/PETScope/PETScope-Test-Data/PET/Input/pet_4d.nii /neuro/stefan/workspace/PETScope/PETScope-Test-Data/T1/Input/t1_mni.nii /neuro/stefan/workspace/PETScope/PETScope-Test-Data/TEMPLATES/Input/brain-segmentation.nii.gz /neuro/stefan/workspace/srtm-pipeline-test --space PET

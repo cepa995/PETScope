@@ -3,7 +3,7 @@ import numpy as np
 from rich import print
 from typing import Dict, Any, List, Callable
 from petscope.constants import PVC_SUPPORTED_METHODS, MRI_PHYSICAL_SPACE, SUPPORTED_PHYSICAL_SPACES, \
-      SUPPORTED_REFERENCE_REGIONS, CUSTOM_PIPELINE_COMMAND_DICT, CUSTOM_PIPELINE_FUNCTION_DICT
+      SUPPORTED_REFERENCE_REGIONS, CUSTOM_PIPELINE_COMMAND_DICT
 from petscope.dynamicpet_wrapper.srtm import call_srtm
 from petscope.registration import ants_registration, ants_warp_image
 from petscope.utils import compute_time_activity_curve, convert_4d_to_3d,\
@@ -140,7 +140,7 @@ class PETScope:
         # Call the interactive menu to configure the pipeline
         pipeline = interactive_menu(CUSTOM_PIPELINE_COMMAND_DICT)
         for step in pipeline:
-            print(step)
+            pass
         
         # TODO:
         # 1. Determine necessary inputs by checking the list of functions to be executed
@@ -185,6 +185,7 @@ class PETScope:
                 polyorder=3
             )
         """
+        #TODO: Missing PET JSON inputs
         _, _ = compute_time_activity_curve(
             pet_image_path=pet_image_path,
             template_path=template_path,
@@ -268,6 +269,7 @@ class PETScope:
         template: str,
         physical_space: str,
         reference_region: str,
+        target_region: str,
         output_dir: str,
         model: str,
         pvc_method: str,
@@ -293,6 +295,7 @@ class PETScope:
             template (str): Name of the reference template.
             physical_space (str): Target physical space for the output (e.g., "MRI_PHYSICAL_SPACE").
             reference_region (str): Name of the reference region for TAC computation (e.g., "WholeCerebellum").
+            target_region (str): Name of the target region for TAC computation (e.g., "Hippocampus").
             output_dir (str): Directory to save all pipeline results.
             model (str): SRTM model type to use.
             pvc_method (str): Partial volume correction method (e.g., "Iterative Yang").
@@ -316,6 +319,7 @@ class PETScope:
                 template="FreeSurfer",
                 physical_space="MRI_PHYSICAL_SPACE",
                 reference_region="WholeCerebellum",
+                target_region="Hippocampus",
                 output_dir="/path/to/output",
                 model="SRTM",
                 pvc_method="Iterative Yang",
@@ -480,7 +484,10 @@ class PETScope:
         srtm_results_dir = os.path.join(output_dir, 'SRTM_RESULTS')
         call_srtm(
             pet_4d_path=pet_4d_rsa_volume_path,
-            reference_mask_path=template_pet_space_path if physical_space and physical_space != MRI_PHYSICAL_SPACE else template_path,
+            template_path=template_pet_space_path if physical_space and physical_space != MRI_PHYSICAL_SPACE else template_path,
+            template_name=template,
+            reference_region=reference_region,
+            target_region=target_region,
             output_dir=srtm_results_dir,
             model=model
         )
