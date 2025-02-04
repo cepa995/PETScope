@@ -1,6 +1,4 @@
 import os
-import nibabel as nib
-import numpy as np
 import subprocess
 from rich import print
 from petscope.dynamicpet_wrapper.utils import generate_subject_json
@@ -9,6 +7,7 @@ from petscope.utils import generate_docker_run_cmd, copy_file_to_directory, \
     c3d_compute_statistics
 from petscope.constants import PET_DEP_DOCKER_IMAGE
 
+
 def compute_target_region_stats(
         dvr_path: str,
         template_path: str,
@@ -16,30 +15,56 @@ def compute_target_region_stats(
         target_region: str,
         output_dir: str
 ) -> None:
-        # Create a target region mask from a specified template
-        target_mask_path = os.path.join(output_dir, f"{target_region}.nii.gz")
-        _ = get_target_region_mask(
-            template_path=template_path,
-            template_name=template_name,
-            target_name=target_region,
-            mask_out=target_mask_path
-        )
+    """
+    Computes statistical metrics for a specified target brain region from DVR images.
 
-        # Binarize the target region
-        target_mask_binary_path = os.path.join(output_dir, f'{target_region}_binary.nii.gz')
-        c3d_binarize_image(
-             target_mask_path,
-             target_mask_binary_path
-        )
+    This function generates a binary mask for the specified target region using a given template,
+    and computes statistical measures (e.g., mean, standard deviation) on the DVR (Distribution Volume Ratio) image
+    within the masked region. The results are saved in a CSV file in the specified output directory.
 
-        # Compute basic DVR image statistics
-        stats_file_path = os.path.join(output_dir, "statistics.csv")
-        c3d_compute_statistics(
-             dvr_path,
-             target_mask_binary_path,
-             stats_file_path
-        )
+    Args:
+        dvr_path (str): Absolute path to the DVR image (NIfTI format).
+        template_path (str): Absolute path to the anatomical template used for generating the target region mask.
+        template_name (str): Name of the template being used.
+        target_region (str): Name of the target region for which statistics will be computed.
+        output_dir (str): Absolute path to the directory where the output mask and statistics will be stored.
 
+    Outputs:
+        - A binary mask of the target region saved as '<target_region>_binary.nii.gz' in the output directory.
+        - A CSV file ('statistics.csv') containing statistical metrics computed within the target region.
+
+    Example:
+        compute_target_region_stats(
+            dvr_path="/path/to/dvr_image.nii.gz",
+            template_path="/path/to/template.nii.gz",
+            template_name="MNI152",
+            target_region="Hippocampus",
+            output_dir="/path/to/output"
+        )
+    """
+    # Create a target region mask from a specified template
+    target_mask_path = os.path.join(output_dir, f"{target_region}.nii.gz")
+    _ = get_target_region_mask(
+        template_path=template_path,
+        template_name=template_name,
+        target_name=target_region,
+        mask_out=target_mask_path
+    )
+
+    # Binarize the target region
+    target_mask_binary_path = os.path.join(output_dir, f'{target_region}_binary.nii.gz')
+    c3d_binarize_image(
+         target_mask_path,
+         target_mask_binary_path
+    )
+
+    # Compute basic DVR image statistics
+    stats_file_path = os.path.join(output_dir, "statistics.csv")
+    c3d_compute_statistics(
+         dvr_path,
+         target_mask_binary_path,
+         stats_file_path
+    )
 
 def call_srtm(
     pet_4d_path: str,
