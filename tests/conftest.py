@@ -8,6 +8,15 @@ from pathlib import Path
 TEST_DATA_DIR = Path(__file__).resolve().parent.parent / "PETScope-Test-Data"
 
 @pytest.fixture
+def srtm2_test_args():
+    """Arguments for srtm2 test"""
+    # Define paths to required files
+    moving_img_path = TEST_DATA_DIR / "SRTM2" / "CSV" / "simRef_example.csv"
+    return {
+        "file_path": str(moving_img_path)
+    }
+
+@pytest.fixture
 def ants_registration_test_args():
     """Arguments for ants_registration test."""
     # Define paths to required files

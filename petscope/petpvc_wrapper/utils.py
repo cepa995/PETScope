@@ -85,14 +85,14 @@ def petpvc_create_4d_mask(
         # Save the 3D volume for debugging if enabled
         mask_3d_lbl_volume_nii = nib.Nifti1Image(mask_3d_lbl_volume.astype(np.uint16), mask_3d_nii.affine)
         mask_3d_lbl_volume_path = os.path.join(dirname, f"mask_3d_volume_{lbl}.nii.gz")
-        if debug:
-            nib.save(mask_3d_lbl_volume_nii, mask_3d_lbl_volume_path)
+        nib.save(mask_3d_lbl_volume_nii, mask_3d_lbl_volume_path)
 
         mask_3d_lbl_volumes.append(mask_3d_lbl_volume_path)
 
     # Concatenate the 3D volumes into a 4D mask
-    print("\t:white_heavy_check_mark: [bold green]SUCCESS! ")
     mask_4d_nii = nib.concat_images(mask_3d_lbl_volumes)
     nib.save(mask_4d_nii, mask_4d_out)
+
+    print("\t:white_heavy_check_mark: [bold green]SUCCESS! ")
 
     return mask_4d_nii
