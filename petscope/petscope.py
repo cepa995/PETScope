@@ -149,55 +149,6 @@ class PETScope:
         # for others, like let's say 'compute 3d volume', we need a utility function to 
         # convert 4d image to 3d images)
 
-    def get_tac(
-        self,
-        pet_image_path: str,
-        template_path: str,
-        template_name: str,
-        reference_name: str,
-        time_activity_curve_out: str,
-        window_length: int = None,
-        polyorder: int = None
-    ) -> np.array:
-        """
-        Computes the Time Activity Curve (TAC) for a given reference region.
-
-        Args:
-            pet_image_path (str): Absolute path to the input PET image.
-            template_path (str): Absolute path to the reference template image.
-            template_name (str): Name of the template (e.g., "FreeSurfer").
-            reference_name (str): Name of the reference region (e.g., "WholeCerebellum").
-            time_activity_curve_out (str): Absolute path to save the output TAC plot.
-            window_length (int, optional): Length of the window for Savitzky-Golay smoothing. Default is None.
-            polyorder (int, optional): Polynomial order for Savitzky-Golay smoothing. Default is None.
-
-        Returns:
-            np.array: The computed TAC, optionally smoothed if parameters are provided.
-
-        Example:
-            tac = get_tac(
-                pet_image_path="/path/to/pet_image.nii",
-                template_path="/path/to/template.nii",
-                template_name="FreeSurfer",
-                reference_name="WholeCerebellum",
-                time_activity_curve_out="/path/to/output/tac.png",
-                window_length=5,
-                polyorder=3
-            )
-        """
-        #TODO: Missing PET JSON inputs
-        _, _ = compute_time_activity_curve(
-            pet_image_path=pet_image_path,
-            template_path=template_path,
-            template_name=template_name,
-            reference_name=reference_name,
-            time_activity_curve_out=time_activity_curve_out,
-            window_length=window_length,
-            polyorder=polyorder
-        )
-
-        return 0
-
     def coregister_pet_and_mr(
         self,
         pet_4d_path: str,

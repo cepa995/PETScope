@@ -60,51 +60,6 @@ def get_petscope() -> PETScope:
     """
     return PETScope()
 
-@app.command(name="compute_tac")
-def get_tac(
-    pet_image_path: Annotated[str, typer.Argument(help="Absolute path to the PET 4D Image")],
-    template_path: Annotated[str, typer.Argument(help="Absolute path to the Template Image")],
-    time_activity_curve_out: Annotated[str, typer.Argument(help="Absolute path to TAC output (.png) image")],
-    window_size: int = typer.Option(None, "--window_size", "-w", help="Choose Window Size for TAC Smoothing", rich_help_panel="Window Size for Time Activity Curve Smoothing"),
-    polynomial_order: int = typer.Option(None, "--polyorder", "-p", help="Choose Polynomial Order for Savitzky Golay TAC smoothing", rich_help_panel="Polynomial Order for Savitzky Golay TAC smoothing"),
-    reference_name: str = typer.Option(None, "--reference", "-r", help="Choose one of the Supported Reference Region (WholeCerebellum, WhiteMatter)", rich_help_panel="Supported Reference Regions"),
-    template_name: str = typer.Option(None, "--template", "-t", help="Choose name of the Template which was passed under template_path argument (FreeSurfer)", rich_help_panel="Supported Templates"),
-) -> np.array:
-    """
-    Computes Time Activity Curve (TAC).
-
-    Calculates the TAC over the specified reference region using the provided PET 4D image,
-    template, and optional smoothing parameters.
-
-    Args:
-        pet_image_path (str): Absolute path to the PET 4D image.
-        template_path (str): Absolute path to the template image.
-        time_activity_curve_out (str): Absolute path to save the TAC plot (.png).
-        window_size (int, optional): Window size for TAC smoothing. Defaults to None.
-        polynomial_order (int, optional): Polynomial order for TAC smoothing. Defaults to None.
-        reference_name (str, optional): Name of the reference region. Defaults to None.
-        template_name (str, optional): Name of the template. Defaults to None.
-
-    Returns:
-        np.array: Computed TAC.
-    """
-    print(f":gear: [bold green]Computing Time Activity Curve (TAC) over the {reference_name}")
-    petscope = get_petscope()
-    error_code = petscope.get_tac(
-        pet_image_path=pet_image_path,
-        template_path=template_path,
-        template_name=template_name,
-        reference_name=reference_name,
-        time_activity_curve_out=time_activity_curve_out,
-        window_length=window_size,
-        polyorder=polynomial_order
-    )
-    if error_code:
-        print(f":x: [bold red]Could NOT Compute Time Activity Curve over the {reference_name}! ")
-    else:
-        print(f":white_heavy_check_mark: [bold green]Successfully Computed TAC Over the {reference_name}! ")
-
-
 @app.command(name="pet_to_t1")
 def coregister_pet_and_mr(
     pet_4d_path: Annotated[str, typer.Argument(help="Absolute path to the PET 4D Image")],
