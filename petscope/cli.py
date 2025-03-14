@@ -60,7 +60,7 @@ def get_petscope() -> PETScope:
     """
     return PETScope()
 
-@app.command(name="pet_to_t1")
+@app.command(name="pet_to_mri")
 def coregister_pet_and_mr(
     pet_4d_path: Annotated[str, typer.Argument(help="Absolute path to the PET 4D Image")],
     t1_3d_path: Annotated[str, typer.Argument(help="Absolute path to the T1 3D Image")],

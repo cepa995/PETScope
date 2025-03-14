@@ -401,7 +401,7 @@ def plot_srtm2fit(srtm2out, roiname=None, refname=None, save_path="srtm2_fit.png
 
 if __name__ == "__main__":
     # Read sample data into Pandas DataFrame
-    simRef_df = pd.read_csv("./test_data/simRef_example.csv")
+    simRef_df = pd.read_csv("../../PETScope-Test-Data/CSV/simRef_example.csv")
 
     # Parse SRTM2 Input arguments
     t_tac = simRef_df['Times'].values
@@ -418,7 +418,6 @@ if __name__ == "__main__":
         multstart_iter=1
     )
 
-    print(srtm2_output)
     plot_srtm2fit(
         srtm2out=srtm2_output,
         roiname="Hippocampus",
