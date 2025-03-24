@@ -1,6 +1,9 @@
 /**/__pycache__
 /**/.pytest_cache
+/petscope-cli.spec
+/venv
 /data
+/build
 /PETScope.egg-info
 /dist
 /build/bdist.linux*
