@@ -453,15 +453,8 @@ def c3d_compute_statistics(
     Example:
         c3d_compute_statistics("/path/to/image.nii", "/output/image_binary.nii", "/output/stats.txt")
     """
-    # Define C3D command
-    command_lstat = [
-        "c3d",
-        image_path,
-        mask_path,
-        "-lstat"
-    ]
-    # Threshold the image (binary)
-    subprocess.run(command_lstat)
+    # Compute statistics over the image 
+    subprocess.run(f'c3d {image_path} {mask_path} -lstat > {output_path}', shell=True)
 
 
 def compute_time_activity_curve(

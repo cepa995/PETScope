@@ -51,6 +51,9 @@ def compute_target_region_stats(
         mask_out=target_mask_path
     )
 
+    # Replace any white spaces in target region
+    target_region = target_region.replace(' ', '_')
+
     # Binarize the target region
     target_mask_binary_path = os.path.join(output_dir, f'{target_region}_binary.nii.gz')
     c3d_binarize_image(
@@ -59,7 +62,7 @@ def compute_target_region_stats(
     )
 
     # Compute basic DVR image statistics
-    stats_file_path = os.path.join(output_dir, "statistics.csv")
+    stats_file_path = os.path.join(output_dir, f"{target_region}_statistics.csv")
     c3d_compute_statistics(
          dvr_path,
          target_mask_binary_path,
@@ -71,7 +74,7 @@ def call_srtm(
     template_path: str,
     template_name: str,
     reference_region: str,
-    target_region: str,
+    target_regions: list[str],
     output_dir: str,
     model: str = 'SRTMZhou2003',
     fwhm: str = '5'
@@ -89,7 +92,7 @@ def call_srtm(
                             will be extracted
         template_name (str): Name of the template being used
         reference_region (str): Name of the reference region
-        target_region (str): Name of the target region
+        target_regions (list[str]): Name of the target regions
         output_dir (str): Absolute path to the directory where results will be stored.
         model (str, optional): The kinetic model to use (default: 'SRTMZhou2003').
         fwhm (str, optional): Full Width at Half Maximum describing the spatial resolution 
@@ -135,8 +138,9 @@ def call_srtm(
         "--model", model,
         "--refmask", reference_mask_path,
         "--outputdir", srtm_results_mounted_dir,
-        "--fwhm", fwhm
     ]
+    if model == 'SRTMZhou2003':
+        command_line.extend(["--fwhm", fwhm])
 
     # Generate the Docker command for running the SRTM pipeline
     docker_cmd = generate_docker_run_cmd(
@@ -152,13 +156,14 @@ def call_srtm(
 
         # Compute statistics over the desired TARGET region        
         dvr_path = [os.path.join(srtm_results_mounted_dir, f) for f in os.listdir(srtm_results_mounted_dir) if f.endswith('SRTM_meas-dvr_mimap.nii')][0]
-        compute_target_region_stats(
-             dvr_path=dvr_path,
-             template_path=template_path,
-             template_name=template_name,
-             target_region=target_region,
-             output_dir=output_dir
-        )
+        for target_region in target_regions:
+            compute_target_region_stats(
+                dvr_path=dvr_path,
+                template_path=template_path,
+                template_name=template_name,
+                target_region=target_region,
+                output_dir=output_dir
+            )
         print("\t:white_heavy_check_mark: [bold green]SRTM was Successful!")
     except Exception as e:
         from petscope.exceptions import SRTMDynamicPETException

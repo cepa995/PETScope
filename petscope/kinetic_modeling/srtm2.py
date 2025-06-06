@@ -1,3 +1,4 @@
+# srtm2.py
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -6,8 +7,83 @@ from rich import print
 from scipy.optimize import least_squares
 from petscope.kinetic_modeling.utils import fix_multstartpars
 
+region_bounds = {
+    # High-binding regions (Basal Ganglia and Subcortical)
+    "Putamen": {
+        "R1": {"start": 1.0, "lower": 0.3, "upper": 2.0},
+        "k2prime": {"start": 0.1, "lower": 0.02, "upper": 0.3},
+        "bp": {"start": 2.0, "lower": 0.0, "upper": 8.0}
+    },
+    "Thalamus": {
+        "R1": {"start": 1.0, "lower": 0.3, "upper": 2.0},
+        "k2prime": {"start": 0.1, "lower": 0.02, "upper": 0.3},
+        "bp": {"start": 1.8, "lower": 0.0, "upper": 6.0}
+    },
 
-def process_srtm2_output(result, modeldata, upper, lower, k2prime=None):
+    # Moderate-binding regions (Limbic System)
+    "Hippocampus": {
+        "R1": {"start": 0.8, "lower": 0.3, "upper": 1.8},
+        "k2prime": {"start": 0.08, "lower": 0.01, "upper": 0.25},
+        "bp": {"start": 1.2, "lower": -0.2, "upper": 5.0}
+    },
+    "Cingulate gyrus": {
+        "R1": {"start": 0.9, "lower": 0.3, "upper": 1.8},
+        "k2prime": {"start": 0.08, "lower": 0.01, "upper": 0.25},
+        "bp": {"start": 1.3, "lower": -0.2, "upper": 5.0}
+    },
+    "Entorhinal cortex": {
+        "R1": {"start": 0.8, "lower": 0.3, "upper": 1.8},
+        "k2prime": {"start": 0.07, "lower": 0.01, "upper": 0.25},
+        "bp": {"start": 1.1, "lower": -0.2, "upper": 4.5}
+    },
+
+    # Cortical regions (Variable Binding)
+    "Frontal cortex": {
+        "R1": {"start": 0.8, "lower": 0.3, "upper": 1.8},
+        "k2prime": {"start": 0.07, "lower": 0.01, "upper": 0.25},
+        "bp": {"start": 0.9, "lower": -0.3, "upper": 4.0}
+    },
+    "Inferior temporal cortex": {
+        "R1": {"start": 0.8, "lower": 0.3, "upper": 1.8},
+        "k2prime": {"start": 0.07, "lower": 0.01, "upper": 0.25},
+        "bp": {"start": 0.8, "lower": -0.3, "upper": 4.0}
+    },
+    "Occipital cortex": {
+        "R1": {"start": 0.9, "lower": 0.3, "upper": 1.8},
+        "k2prime": {"start": 0.08, "lower": 0.01, "upper": 0.25},
+        "bp": {"start": 0.7, "lower": -0.3, "upper": 3.5}
+    },
+    "Parietal cortex": {
+        "R1": {"start": 0.8, "lower": 0.3, "upper": 1.8},
+        "k2prime": {"start": 0.07, "lower": 0.01, "upper": 0.25},
+        "bp": {"start": 0.8, "lower": -0.3, "upper": 4.0}
+    },
+
+    # Reference-like regions (Low Binding)
+    "Cerebellar cortex": {
+        "R1": {"start": 0.8, "lower": 0.3, "upper": 1.5},
+        "k2prime": {"start": 0.06, "lower": 0.01, "upper": 0.2},
+        "bp": {"start": 0.3, "lower": -0.5, "upper": 2.5}
+    },
+    "Centrum semiovale": {
+        "R1": {"start": 0.7, "lower": 0.2, "upper": 1.5},
+        "k2prime": {"start": 0.05, "lower": 0.01, "upper": 0.2},
+        "bp": {"start": 0.2, "lower": -0.5, "upper": 2.0}
+    }
+}
+
+# Default bounds for any other regions not specifically defined
+default_bounds = {
+    "R1": {"start": 0.5, "lower": 0.1, "upper": 2.0},
+    "k2prime": {"start": 0.03, "lower": 0.005, "upper": 0.3},
+    "bp": {"start": 0.0, "lower": -0.5, "upper": 8.0}
+}
+
+def calculate_weights(frame_durations, tac_values):
+    """Calculate weights based on frame duration and decay-corrected counts."""
+    return np.sqrt(frame_durations) / np.sqrt(np.maximum(tac_values, 0.01))
+
+def process_srtm2_output(result, modeldata, upper, lower, k2prime=None, verbose=False):
     """
     Processes the output of SRTM2 model fitting to check parameter limits, 
     compute fitted TACs, and return structured output.
@@ -18,21 +94,27 @@ def process_srtm2_output(result, modeldata, upper, lower, k2prime=None):
         upper (dict): Upper bounds of parameters.
         lower (dict): Lower bounds of parameters.
         k2prime (float, optional): If not None, the k2prime parameter is fixed.
+        verbose (boolean): If set to True, it will print out warning if the fitted parameters
+        are hitting upper and/or lower limit bounds.
 
     Returns
         dict :A dictionary containing fitted parameters, standard errors, fitted TACs, 
             and metadata about the model fit.
     """
     fitted_params = np.round(np.array(list(result.values())), 3)
-    upper_bounds = np.round(np.array([upper[key] for key in result.keys()]), 3)
-    lower_bounds = np.round(np.array([lower[key] for key in result.keys()]), 3)
+    if k2prime is None:
+        upper_bounds = np.round(np.array([upper[key] for key in result.keys()]), 3)
+        lower_bounds = np.round(np.array([lower[key] for key in result.keys()]), 3)
+    else:
+        upper_bounds = np.round(np.array([upper[key] if key != "k2prime" else k2prime for key in result.keys()]), 3)
+        lower_bounds = np.round(np.array([lower[key] if key != "k2prime" else k2prime for key in result.keys()]), 3)
 
     # Check if parameters hit upper or lower limits
     limcheck_u = np.equal(fitted_params, upper_bounds)
     limcheck_l = np.equal(fitted_params, lower_bounds)
     limcheck = limcheck_u | limcheck_l
 
-    if np.any(limcheck):
+    if np.any(limcheck) and verbose:
         print("\nWarning: Fitted parameters are hitting upper or lower limit bounds. "
               "Consider modifying the upper and lower limit boundaries, "
               "or using a multi-start approach when fitting the model.\n")
@@ -66,6 +148,10 @@ def process_srtm2_output(result, modeldata, upper, lower, k2prime=None):
     par["k2a"] = (par["R1"] * par["k2prime"]) / (par["bp"] + 1)
     par_se["k2a.se"] = get_se("k2a")
 
+    # Add DVR calculation
+    par["dvr"] = par["bp"] + 1
+    par_se["dvr.se"] = par_se["bp.se"]  # Same uncertainty as BP
+    
     # Construct final output
     output = {
         "par": par,
@@ -75,7 +161,7 @@ def process_srtm2_output(result, modeldata, upper, lower, k2prime=None):
         "tacs": tacs,
         "model": "srtm2"
     }
-
+    
     return output
 
 def kinfit_convolve(a, b, step):
@@ -157,8 +243,8 @@ def fit_srtm2_model(modeldata, start, lower, upper, weights,
     
     if k2prime_fixed is not None:
         # Check if k2prime is outside of the bounds
-        if not lower['k2prime'] <= k2prime_fixed <= upper['k2prime']:
-            raise ValueError("Fixed k2prime value is outside allowed bounds.")
+        # if not lower['k2prime'] <= k2prime_fixed <= upper['k2prime']:
+        #     raise ValueError("Fixed k2prime value is outside allowed bounds.")
 
         # Define a model function with k2prime held fixed.
         def model_func(t, R1, bp):
@@ -186,9 +272,13 @@ def fit_srtm2_model(modeldata, start, lower, upper, weights,
             upper_bounds = upper
 
     # Define residual function
-    def residuals(params, t_tac, roitac):
-        R1, k2prime, bp = params
-        model_pred = srtm2_model(t_tac, roitac, R1, k2prime, bp)
+    def residuals(params, t_tac, roitac, reftac, weights):
+        if k2prime_fixed is None:
+            R1, k2prime, bp = params
+        else:
+            R1, bp = params
+            k2prime = k2prime_fixed
+        model_pred = srtm2_model(t_tac, reftac, R1, k2prime, bp)  # FIXED: using reftac
         residuals_arr = (model_pred - roitac) * weights  # Minimize the difference
         if np.isnan(residuals_arr).any():
             return np.full_like(residuals_arr, np.inf)  # Avoid NaNs in optimization
@@ -196,17 +286,19 @@ def fit_srtm2_model(modeldata, start, lower, upper, weights,
     
     # Choose between a single fit or a multi-start approach
     if multstart_iter == 1:
-        # Perform optimization
-        result = least_squares(residuals, p0, args=(t_tac, roitac), bounds=(lower_bounds, upper_bounds))
+        # Perform optimization with correct arguments
+        result = least_squares(residuals, p0, args=(t_tac, roitac, reftac, weights), bounds=(lower_bounds, upper_bounds))
         optimized_paramters = result.x
     else:
         best_cost = np.inf
         optimized_paramters = None
         for i in range(multstart_iter):
             # Generate a random starting point between the given bounds.
-            p0_trial = np.random.uniform(list(multstart_lower.values()), list(multstart_upper.values()))
+            p0_trial = [np.random.uniform(low, high) for low, high in 
+                    zip(list(multstart_lower.values()), list(multstart_upper.values()))]
             try:
-                result = least_squares(residuals, p0_trial, args=(t_tac, roitac), bounds=(lower_bounds, upper_bounds))
+                # Use correct arguments here too
+                result = least_squares(residuals, p0_trial, args=(t_tac, roitac, reftac, weights), bounds=(lower_bounds, upper_bounds))
                 optimized_paramters_trial = result.x
                 
                 # Compute a simple cost (sum of squared residuals)
@@ -279,14 +371,14 @@ def srtm2(t_tac, reftac, roitac, k2prime=None, weights=None, frame_start_end=Non
     """
     # Step 0. Parse function arguments and check if k2prime has been specified
     if k2prime is None:
-        start = {'R1': R1_start, 'k2prime': k2prime_start, 'bp': bp_start}
-        lower = {'R1': R1_lower, 'k2prime': k2prime_lower, 'bp': bp_lower}
-        upper = {'R1': R1_upper, 'k2prime': k2prime_upper, 'bp': bp_upper}
-
         print("Note: Without specifying a k2prime value for SRTM2, it is effectively "
               "equivalent to the conventional SRTM model. This can be useful for "
               "selecting an appropriate k2prime value, but without re-fitting the "
               "model with a specified k2prime value, the model is not really SRTM2.")
+
+        start = {'R1': R1_start, 'k2prime': k2prime_start, 'bp': bp_start}
+        lower = {'R1': R1_lower, 'k2prime': k2prime_lower, 'bp': bp_lower}
+        upper = {'R1': R1_upper, 'k2prime': k2prime_upper, 'bp': bp_upper}
     else:
         if isinstance(k2prime, (list, tuple)) and len(k2prime) > 1:
             raise ValueError("k2prime must be specified by a single value.")
@@ -311,6 +403,7 @@ def srtm2(t_tac, reftac, roitac, k2prime=None, weights=None, frame_start_end=Non
     t_tac = np.array(t_tac)
     reftac = np.array(reftac)
     roitac = np.array(roitac)
+
     weights = np.array(weights) if weights is not None else np.ones_like(t_tac)
 
     # Bundle data into a dict:
@@ -326,101 +419,108 @@ def srtm2(t_tac, reftac, roitac, k2prime=None, weights=None, frame_start_end=Non
     output = process_srtm2_output(result, modeldata, upper, lower, k2prime)
     return output
 
-def plot_srtm2fit(srtm2out, roiname=None, refname=None, save_path="srtm2_fit.png"):
+def validate_srtm2_model():
     """
-    Generate and save a visualization of the SRTM2 model fit.
-
-    Arguments:
-        srtm2out (dict): Output dictionary from the SRTM2 fitting procedure.
-            Expected keys:
-            - 'tacs' (DataFrame): Time-activity curves containing 'Time', 'Reference', 'Target', and 'Target_fitted'.
-            - 'weights' (array_like): Weights used during the model fitting.
-        roiname (str, optional): Name of the target region (ROI) to label on the plot. Default is "ROI".
-        refname (str, optional): Name of the reference region to label on the plot. Default is "Reference".
-        save_path (str, optional): File path to save the generated plot. Default is "srtm2_fit.png".
-
-    Returns:
-        None: The function saves the plot as a PNG file at the specified `save_path`.
-
-    Notes:
-        - The function creates a scatter plot of measured TAC data with point sizes scaled by weights.
-        - The fitted model TAC is plotted as a dashed line for comparison.
-        - The plot is saved in high resolution (300 DPI).
+    Validate the SRTM2 model implementation using synthetic data with known parameters.
     """
-
-    # Extract measured and fitted data
-    measured = srtm2out["tacs"][["Time", "Reference", "Target"]].copy()
-    measured["Weights"] = srtm2out["weights"]
-
-    fitted = srtm2out["tacs"][["Time", "Target_fitted"]].copy()
-    fitted["Weights"] = srtm2out["weights"]
-
-    # Set default names if not provided
-    roiname = roiname if roiname else "ROI"
-    refname = refname if refname else "Reference"
-
-    # Rename columns for clarity
-    measured.rename(columns={"Target": f"{roiname}.measured", "Reference": refname}, inplace=True)
-    fitted.rename(columns={"Target_fitted": f"{roiname}.fitted"}, inplace=True)
-
-    # Reshape data for plotting
-    tidy_measured = measured.melt(id_vars=["Time", "Weights"], var_name="Region", value_name="Radioactivity")
-    tidy_fitted = fitted.melt(id_vars=["Time", "Weights"], var_name="Region", value_name="Radioactivity")
-
-    # Define color palette
-    colors = sns.color_palette("Set1", n_colors=3)
-
-    # Create figure
-    plt.figure(figsize=(10, 6))
+    import numpy as np
+    import matplotlib.pyplot as plt
     
-    # Scatter plot for measured values with weighting size
-    sns.scatterplot(
-        data=tidy_measured, x="Time", y="Radioactivity", hue="Region", size="Weights",
-        sizes=(10, 100), alpha=0.8, edgecolor="black", palette=colors
-    )
-
-    # Line plot for fitted values
-    sns.lineplot(
-        data=tidy_fitted, x="Time", y="Radioactivity", hue="Region", linewidth=2, linestyle="dashed", palette=colors
-    )
-
-    # Formatting
-    plt.xlabel("Time (min)")
-    plt.ylabel("Radioactivity")
-    plt.title("SRTM2 Model Fit")
-    plt.legend(title="Region", loc="upper right")
-    plt.grid(True)
-
-    # Save the plot as a PNG file
-    plt.savefig(save_path, dpi=300, bbox_inches="tight")
-    plt.close()  # Close the plot to prevent displaying it
-
-    print(f"Plot saved as: {save_path}")
-
-
-
-if __name__ == "__main__":
-    # Read sample data into Pandas DataFrame
-    simRef_df = pd.read_csv("../../PETScope-Test-Data/CSV/simRef_example.csv")
-
-    # Parse SRTM2 Input arguments
-    t_tac = simRef_df['Times'].values
-    reftac = simRef_df['Reference'].values
-    roitac = simRef_df['ROI1'].values
-    weights = simRef_df['Weights'].values
-
-    # Execute SRTM2
-    srtm2_output = srtm2(
+    # Define known parameters
+    true_R1 = 1.2
+    true_k2prime = 0.1
+    true_bp = 2.0  # This should give DVR = 3.0
+    
+    # Create time points
+    t_tac = np.linspace(0, 90, 30)  # 30 frames over 90 minutes
+    
+    # Create a reference TAC (simple exponential decay)
+    reftac = 10 * np.exp(-0.05 * t_tac)
+    
+    # Generate target TAC using the corrected SRTM2 model with known parameters
+    target_tac = srtm2_model(t_tac, reftac, true_R1, true_k2prime, true_bp)
+    
+    # Add some noise
+    np.random.seed(42)  # For reproducibility
+    noise_level = 0.05 * np.max(target_tac)
+    noisy_target_tac = target_tac + np.random.normal(0, noise_level, target_tac.shape)
+    
+    # Set up uniform weights
+    weights = np.ones_like(t_tac)
+    
+    # Try fitting with original SRTM (without fixed k2prime)
+    print("Testing original SRTM (estimating k2prime)...")
+    result1 = srtm2(
         t_tac=t_tac,
         reftac=reftac,
-        roitac=roitac,
+        roitac=noisy_target_tac,
         weights=weights,
-        multstart_iter=1
+        multstart_iter=20,  # Use multiple starting points
+        printvals=True
     )
+    
+    # Use the estimated k2prime for SRTM2
+    estimated_k2prime = result1['par']['k2prime'].values[0]
+    print(f"Using estimated k2prime = {estimated_k2prime:.4f} for SRTM2...")
+    
+    # Try fitting with SRTM2 (fixed k2prime)
+    result2 = srtm2(
+        t_tac=t_tac,
+        reftac=reftac,
+        roitac=noisy_target_tac,
+        k2prime=estimated_k2prime,
+        weights=weights,
+        multstart_iter=20,
+        printvals=True
+    )
+    
+    # Print results
+    print("\nTrue parameters:")
+    print(f"  R1 = {true_R1:.4f}")
+    print(f"  k2prime = {true_k2prime:.4f}")
+    print(f"  BP = {true_bp:.4f}")
+    print(f"  DVR = {true_bp + 1:.4f}")
+    
+    print("\nSRTM estimated parameters:")
+    print(f"  R1 = {result1['par']['R1'].values[0]:.4f}")
+    print(f"  k2prime = {result1['par']['k2prime'].values[0]:.4f}")
+    print(f"  BP = {result1['par']['bp'].values[0]:.4f}")
+    print(f"  DVR = {result1['par']['bp'].values[0] + 1:.4f}")
+    
+    print("\nSRTM2 estimated parameters (with fixed k2prime):")
+    print(f"  R1 = {result2['par']['R1'].values[0]:.4f}")
+    print(f"  k2prime = {estimated_k2prime:.4f} (fixed)")
+    print(f"  BP = {result2['par']['bp'].values[0]:.4f}")
+    print(f"  DVR = {result2['par']['bp'].values[0] + 1:.4f}")
+    
+    # Plot the results
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    
+    # SRTM fits
+    ax1.plot(t_tac, reftac, 'b-', label='Reference TAC')
+    ax1.plot(t_tac, noisy_target_tac, 'ko', markersize=4, label='Noisy Target TAC')
+    ax1.plot(t_tac, target_tac, 'g--', label='True Target TAC')
+    ax1.plot(t_tac, result1['tacs']['Target_fitted'], 'r-', label='SRTM Fitted TAC')
+    ax1.set_xlabel('Time (min)')
+    ax1.set_ylabel('Activity')
+    ax1.set_title('SRTM Validation')
+    ax1.legend()
+    
+    # SRTM2 fits
+    ax2.plot(t_tac, reftac, 'b-', label='Reference TAC')
+    ax2.plot(t_tac, noisy_target_tac, 'ko', markersize=4, label='Noisy Target TAC')
+    ax2.plot(t_tac, target_tac, 'g--', label='True Target TAC')
+    ax2.plot(t_tac, result2['tacs']['Target_fitted'], 'r-', label='SRTM2 Fitted TAC')
+    ax2.set_xlabel('Time (min)')
+    ax2.set_ylabel('Activity')
+    ax2.set_title('SRTM2 Validation (fixed k2prime)')
+    ax2.legend()
+    
+    plt.tight_layout()
+    plt.savefig('srtm2_validation.png', dpi=300)
+    plt.close()
+    
+    return result1, result2
 
-    plot_srtm2fit(
-        srtm2out=srtm2_output,
-        roiname="Hippocampus",
-        refname="Cerebellum",
-        save_path="srtm2_plot.png"
-    )
+if __name__ == "__main__":
+    validate_srtm2_model()

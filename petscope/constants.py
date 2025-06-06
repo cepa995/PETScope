@@ -378,11 +378,88 @@ REFERENCE_REGIONS = {
 # ------------------------------------------
 # TARGET_REGIONS: Defines list of target regions supported for dynamic PET modeling. These regions are grouped by
 # template (e.g., FreeSurfer) and further subdivided into specific reference regions.
+# First, create FREESURFER_LABELS by inverting the FREESURFER_REGIONS dictionary
+FREESURFER_LABELS = {v: k for k, v in FREESURFER_REGIONS.items()}
+
+# Now complete the TARGET_REGIONS dictionary
 TARGET_REGIONS = {
     "FreeSurfer": {
         "Hippocampus": [
             int(FREESURFER_LABELS["Left-Hippocampus"]),
             int(FREESURFER_LABELS["Right-Hippocampus"]),
+        ],
+        "Frontal cortex": [
+            # Left hemisphere frontal regions
+            int(FREESURFER_LABELS["ctx-lh-caudalmiddlefrontal"]),
+            int(FREESURFER_LABELS["ctx-lh-parsopercularis"]),
+            int(FREESURFER_LABELS["ctx-lh-parsorbitalis"]),
+            int(FREESURFER_LABELS["ctx-lh-parstriangularis"]),
+            int(FREESURFER_LABELS["ctx-lh-rostralmiddlefrontal"]),
+            int(FREESURFER_LABELS["ctx-lh-superiorfrontal"]),
+            int(FREESURFER_LABELS["ctx-lh-frontalpole"]),
+            # Right hemisphere frontal regions
+            int(FREESURFER_LABELS["ctx-rh-caudalmiddlefrontal"]),
+            int(FREESURFER_LABELS["ctx-rh-parsopercularis"]),
+            int(FREESURFER_LABELS["ctx-rh-parsorbitalis"]),
+            int(FREESURFER_LABELS["ctx-rh-parstriangularis"]),
+            int(FREESURFER_LABELS["ctx-rh-rostralmiddlefrontal"]),
+            int(FREESURFER_LABELS["ctx-rh-superiorfrontal"]),
+            int(FREESURFER_LABELS["ctx-rh-frontalpole"]),
+        ],
+        "Inferior temporal cortex": [
+            int(FREESURFER_LABELS["ctx-lh-inferiortemporal"]),
+            int(FREESURFER_LABELS["ctx-rh-inferiortemporal"]),
+        ],
+        "Cerebellar cortex": [
+            int(FREESURFER_LABELS["Left-Cerebellum-Cortex"]),
+            int(FREESURFER_LABELS["Right-Cerebellum-Cortex"]),
+        ],
+        "Centrum semiovale": [
+            # This is primarily deep white matter regions
+            int(FREESURFER_LABELS["Left-Cerebral-White-Matter"]),
+            int(FREESURFER_LABELS["Right-Cerebral-White-Matter"]),
+        ],
+        "Occipital cortex": [
+            int(FREESURFER_LABELS["ctx-lh-lateraloccipital"]),
+            int(FREESURFER_LABELS["ctx-lh-cuneus"]),
+            int(FREESURFER_LABELS["ctx-lh-pericalcarine"]),
+            int(FREESURFER_LABELS["ctx-rh-lateraloccipital"]),
+            int(FREESURFER_LABELS["ctx-rh-cuneus"]),
+            int(FREESURFER_LABELS["ctx-rh-pericalcarine"]),
+        ],
+        "Parietal cortex": [
+            int(FREESURFER_LABELS["ctx-lh-inferiorparietal"]),
+            int(FREESURFER_LABELS["ctx-lh-superiorparietal"]),
+            int(FREESURFER_LABELS["ctx-lh-supramarginal"]),
+            int(FREESURFER_LABELS["ctx-lh-postcentral"]),
+            int(FREESURFER_LABELS["ctx-lh-precuneus"]),
+            int(FREESURFER_LABELS["ctx-rh-inferiorparietal"]),
+            int(FREESURFER_LABELS["ctx-rh-superiorparietal"]),
+            int(FREESURFER_LABELS["ctx-rh-supramarginal"]),
+            int(FREESURFER_LABELS["ctx-rh-postcentral"]),
+            int(FREESURFER_LABELS["ctx-rh-precuneus"]),
+        ],
+        "Cingulate gyrus": [
+            int(FREESURFER_LABELS["ctx-lh-caudalanteriorcingulate"]),
+            int(FREESURFER_LABELS["ctx-lh-isthmuscingulate"]),
+            int(FREESURFER_LABELS["ctx-lh-posteriorcingulate"]),
+            int(FREESURFER_LABELS["ctx-lh-rostralanteriorcingulate"]),
+            int(FREESURFER_LABELS["ctx-rh-caudalanteriorcingulate"]),
+            int(FREESURFER_LABELS["ctx-rh-isthmuscingulate"]),
+            int(FREESURFER_LABELS["ctx-rh-posteriorcingulate"]),
+            int(FREESURFER_LABELS["ctx-rh-rostralanteriorcingulate"]),
+        ],
+        "Putamen": [
+            int(FREESURFER_LABELS["Left-Putamen"]),
+            int(FREESURFER_LABELS["Right-Putamen"]),
+        ],
+        "Thalamus": [
+            int(FREESURFER_LABELS["Left-Thalamus-Proper"]),
+            int(FREESURFER_LABELS["Right-Thalamus-Proper"]),
+        ],
+        "Entorhinal cortex": [
+            int(FREESURFER_LABELS["ctx-lh-entorhinal"]),
+            int(FREESURFER_LABELS["ctx-rh-entorhinal"]),
         ],
     }
 }
