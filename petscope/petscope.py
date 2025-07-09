@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from rich import print
+from petscope.constants import TARGET_REGIONS
 from typing import Dict, Any, List, Callable
 from petscope.constants import PVC_SUPPORTED_METHODS, MRI_PHYSICAL_SPACE, SUPPORTED_PHYSICAL_SPACES, \
       SUPPORTED_REFERENCE_REGIONS, CUSTOM_PIPELINE_COMMAND_DICT
@@ -12,7 +13,7 @@ from petscope.utils import compute_time_activity_curve, convert_4d_to_3d,\
 from petscope.petpvc_wrapper.utils import petpvc_create_4d_mask, check_if_pvc_method_is_supported
 from petscope.petpvc_wrapper.petpvc import run_petpvc_iterative_yang
 from petscope.spm_wrapper.spm import spm_realignment, PET_REALIGN
-from petscope.kinetic_modeling.dvr import get_srtm2_dvr_image
+from petscope.kinetic_modeling.dvr import compute_DVR_image
 
 def map_strings_to_functions(strings: List[str], function_mapping: Dict[str, Callable]) -> Dict[str, Callable]:
     """
@@ -432,50 +433,15 @@ class PETScope:
 
         # Execute Simplified Reference Tissue Model2 (SRTM2)
         srtm2_results_dir = os.path.join(output_dir, 'SRTM2_RESULTS')
-        get_srtm2_dvr_image(
+        target_regions = [target_region] if target_region else [region for region in TARGET_REGIONS['FreeSurfer'] if region != reference_region]
+        compute_DVR_image(
             pet_file=pet_4d_rsa_volume_path,
             frame_durations=np.array(pet_json['FrameDuration']),
             output_dir=srtm2_results_dir,
             template_path=template_pet_space_path if physical_space and physical_space != MRI_PHYSICAL_SPACE else template_path,
             template_name=template,
-            roi_regions=[
-                "Hippocampus",
-                "Frontal cortex",
-                "Inferior temporal cortex",
-                "Cerebellar cortex",
-                "Centrum semiovale",
-                "Occipital cortex",
-                "Parietal cortex",
-                "Cingulate gyrus",
-                "Putamen",
-                "Thalamus",
-                "Entorhinal cortex"
-            ],
+            roi_regions= target_regions,
             reference_region=reference_region
         )
 
-        # Execute Simplified Reference Tissue Model (SRTM)
-        # print(":gear: STEP 10. [bold green]Execute Simplified Reference Tissue Model (SRTM)")
-        # srtm_results_dir = os.path.join(output_dir, 'SRTM_RESULTS')
-        # call_srtm(
-        #     pet_4d_path=pet_4d_rsa_volume_path,
-        #     template_path=template_pet_space_path if physical_space and physical_space != MRI_PHYSICAL_SPACE else template_path,
-        #     template_name=template,
-        #     reference_region=reference_region,
-        #     output_dir=srtm_results_dir,
-        #     target_regions=[
-        #         "Hippocampus",
-        #         "Frontal cortex",
-        #         "Inferior temporal cortex",
-        #         "Cerebellar cortex",
-        #         "Centrum semiovale",
-        #         "Occipital cortex",
-        #         "Parietal cortex",
-        #         "Cingulate gyrus",
-        #         "Putamen",
-        #         "Thalamus",
-        #         "Entorhinal cortex"
-        #     ],
-        #     model=model
-        # )
         return 0
