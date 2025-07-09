@@ -64,20 +64,14 @@ def convert_path_for_os(path: str) -> str:
     """
     Converts Windows paths to WSL-style paths if running on Windows.
     Leaves other OS paths unchanged.
+
+    TODO: Refactor this function
     """
-    if os.name == 'nt':  # 'nt' means Windows
-        print("Running Docker on Windows - Convert Path to UNIX WSL-style")
-        # Replace backslashes with forward slashes
-        path = path.replace('\\', '/')
-        # Replace drive letter (e.g. C:) with //c
-        if len(path) > 2 and path[1] == ':':
-            drive_letter = path[0].lower()
-            path = f"//{drive_letter}{path[2:]}"
     return path
 
 def generate_docker_run_cmd(
     image_name: str,
-    mount_points: Dict[str, str] = None,  # https://docs.docker.com/storage/volumes/
+    mount_points: Dict[str, str] = None, 
     volumes: Dict[str, str] = None,
     env_variables: Dict[str, str] = None,
     entrypoint: str = None,
