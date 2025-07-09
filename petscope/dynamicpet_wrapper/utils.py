@@ -15,10 +15,6 @@ def load_settings_template() -> dict:
 
     Returns:
         dict: Parsed JSON data from the settings template.
-
-    Raises:
-        FileNotFoundError: If the `settings_template.json` file does not exist.
-        json.JSONDecodeError: If the JSON file has an invalid structure.
     """
     settings_path = os.path.join(ROOT_DIR, 'settings_template.json')
     with open(settings_path, 'r') as file:

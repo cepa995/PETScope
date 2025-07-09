@@ -154,7 +154,7 @@ def call_srtm(
         # Run the Docker command
         subprocess.run(docker_cmd, shell=False, check=True)
 
-        # Compute statistics over the desired TARGET region        
+        # Compute DVR statistics over the desired TARGET region(s)    
         dvr_path = [os.path.join(srtm_results_mounted_dir, f) for f in os.listdir(srtm_results_mounted_dir) if f.endswith('SRTM_meas-dvr_mimap.nii')][0]
         for target_region in target_regions:
             compute_target_region_stats(
