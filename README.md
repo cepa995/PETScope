@@ -24,6 +24,3 @@ Steps:
  - Ask if you are performing single subject analysis, or are you analyzing entire study
  - Ask what type of analysis you are doing (e.g. Kinetic Modeling)
  - Build a pipeline (based on the above the settings.json is created for either 1x sub or entire study and a list of available options is being shown to the user)
-
- ## Sample Command Line:
- petscope run_srtm /neuro/stefan/workspace/PETScope/PETScope-Test-Data/PET/Input/pet_4d.nii /neuro/stefan/workspace/PETScope/PETScope-Test-Data/T1/Input/t1_mni.nii /neuro/stefan/workspace/PETScope/PETScope-Test-Data/TEMPLATES/Input/brain-segmentation.nii.gz /neuro/stefan/workspace/srtm-pipeline-test --space PET
