@@ -395,6 +395,243 @@ def srtm2(t_tac, reftac, roitac, k2prime=None, weights=None, frame_start_end=Non
     output = process_srtm2_output(result, modeldata, upper, lower, k2prime)
     return output
 
+def estimate_k2prime_voxelwise(pet_data, t_tac, ref_tac, roi_masks,
+                               multstart_iter=100, frame_durations=None, verbose=True,
+                               k2_prime_threshold=0.03, k2_prime_upper_limit=0.4,
+                               R1_lower_limit=0.3, R1_upper_limit=3.0,
+                               BP_lower_limit=-1, BP_upper_limit=15):
+    """
+    Estimate k2prime from individual voxels within ROIs.
+    
+    Args:
+        pet_data (ndarray): 4D PET data array
+        t_tac (ndarray): Time points array
+        ref_tac (ndarray): Reference region TAC
+        roi_masks (dict): Dictionary of ROI masks
+        brain_mask (ndarray): Brain mask array
+        multstart_iter (int): Number of iterations for multi-start optimization
+        frame_durations (list): How long each time frame lasts
+        verbose (bool): Flag to enable detailed output
+        k2_prime_threshold (float): Minimum k2prime value to accept
+        k2_prime_upper_limit (float): Maximum k2prime value to accept
+        R1_lower_limit (float): Minimum R1 value to accept
+        R1_upper_limit (float): Maximum R1 value to accept
+        BP_lower_limit (float): Minimum BP value to accept  
+        BP_upper_limit (float): Maximum BP value to accept
+        
+    Returns:
+        dict: Dictionary containing k2prime and voxel results
+    """
+    
+    if verbose:
+        print("\nFirst pass: Estimating k2prime from individual voxels...")
+        print(f"  k2prime range: [{k2_prime_threshold:.3f}, {k2_prime_upper_limit:.3f}]")
+        print(f"  R1 range: [{R1_lower_limit:.3f}, {R1_upper_limit:.3f}]")
+        print(f"  BP range: [{BP_lower_limit:.1f}, {BP_upper_limit:.1f}]")
+    
+    k2prime_values = []
+    roi_summary = {}
+    total_voxels_processed = 0
+    fail_counter = 0
+    reject_counter = 0
+    
+    # Initialize ROI-specific counters
+    for roi_name in roi_masks.keys():
+        roi_summary[roi_name] = {
+            'total_voxels': np.sum(roi_masks[roi_name]),
+            'valid_voxels': 0,
+            'failed_voxels': 0,
+            'rejected_voxels': 0,
+            'k2prime_values': []
+        }
+    
+    total_voxels = sum(roi_summary[roi]['total_voxels'] for roi in roi_summary.keys())
+    
+    if verbose:
+        print(f"Processing {total_voxels} voxels across all ROIs")
+    
+    # Loop through each ROI and process its voxels
+    for roi_name, roi_mask in roi_masks.items():
+        if verbose:
+            print(f"  Processing ROI: {roi_name}")
+        
+        shape = pet_data.shape[:3]
+        roi_voxel_counter = 0
+        
+        # Loop through voxels using the same structure as create_parametric_images
+        for x in range(shape[0]):
+            for y in range(shape[1]):
+                for z in range(shape[2]):
+                    if roi_mask[x, y, z]:
+                        total_voxels_processed += 1
+                        roi_voxel_counter += 1
+                        
+                        # Show progress periodically
+                        if verbose and total_voxels_processed % 1000 == 0:
+                            progress = 100 * total_voxels_processed / total_voxels
+                            fail_rate = 100 * fail_counter / total_voxels_processed if total_voxels_processed > 0 else 0
+                            reject_rate = 100 * reject_counter / total_voxels_processed if total_voxels_processed > 0 else 0
+                            print(f"  Progress: {total_voxels_processed}/{total_voxels} ({progress:.1f}%)")
+                            print(f"    Failed fits: {fail_counter} ({fail_rate:.1f}%)")
+                            print(f"    Rejected fits: {reject_counter} ({reject_rate:.1f}%)")
+                        
+                        # Extract voxel TAC
+                        voxel_tac = pet_data[x, y, z, :]
+                        
+                        # Pre-screen voxels with very low activity
+                        mean_activity = np.mean(voxel_tac)
+                        ref_activity = np.mean(ref_tac)
+                        if mean_activity < 0.1 * ref_activity:
+                            fail_counter += 1
+                            roi_summary[roi_name]['failed_voxels'] += 1
+                            continue
+                        
+                        try:
+                            weights = calculate_weights(frame_durations, voxel_tac) if frame_durations is not None else np.ones_like(t_tac)
+                            
+                            # Use region-specific bounds if available
+                            bounds = region_bounds.get(roi_name, default_bounds)
+                            
+                            result = srtm2(
+                                t_tac=t_tac,
+                                reftac=ref_tac,
+                                roitac=voxel_tac,
+                                k2prime=None,  # Estimate k2prime
+                                weights=weights,
+                                multstart_iter=min(multstart_iter, 10),  # Limit iterations for speed
+                                printvals=False,
+                                R1_start=bounds["R1"]["start"], 
+                                R1_lower=bounds["R1"]["lower"], 
+                                R1_upper=bounds["R1"]["upper"],
+                                k2prime_start=bounds["k2prime"]["start"], 
+                                k2prime_lower=bounds["k2prime"]["lower"], 
+                                k2prime_upper=bounds["k2prime"]["upper"],
+                                bp_start=bounds["bp"]["start"], 
+                                bp_lower=bounds["bp"]["lower"], 
+                                bp_upper=bounds["bp"]["upper"]
+                            )
+                            
+                            k2prime_value = result['par']['k2prime'].values[0]
+                            R1_value = result['par']['R1'].values[0]
+                            bp_value = result['par']['bp'].values[0]
+                            
+                            # Quality control checks
+                            k2prime_valid = True
+                            
+                            # Check parameter ranges
+                            if not (k2_prime_threshold <= k2prime_value <= k2_prime_upper_limit):
+                                k2prime_valid = False
+                            if not (R1_lower_limit <= R1_value <= R1_upper_limit):
+                                k2prime_valid = False
+                            if not (BP_lower_limit <= bp_value <= BP_upper_limit):
+                                k2prime_valid = False
+                            if k2prime_value <= 0:
+                                k2prime_valid = False
+                            
+                            if k2prime_valid:
+                                k2prime_values.append(k2prime_value)
+                                roi_summary[roi_name]['valid_voxels'] += 1
+                                roi_summary[roi_name]['k2prime_values'].append(k2prime_value)
+                            else:
+                                reject_counter += 1
+                                roi_summary[roi_name]['rejected_voxels'] += 1
+                                
+                        except Exception as e:
+                            fail_counter += 1
+                            roi_summary[roi_name]['failed_voxels'] += 1
+                            if verbose and fail_counter % 1000 == 0:
+                                print(f"    Fitting error at ({x},{y},{z}): {str(e)[:50]}...")
+                            continue
+    
+    # Calculate ROI-specific statistics
+    for roi_name in roi_summary.keys():
+        roi_k2prime_values = roi_summary[roi_name]['k2prime_values']
+        roi_summary[roi_name]['success_rate'] = (
+            roi_summary[roi_name]['valid_voxels'] / roi_summary[roi_name]['total_voxels'] * 100 
+            if roi_summary[roi_name]['total_voxels'] > 0 else 0
+        )
+        roi_summary[roi_name]['k2prime_mean'] = np.mean(roi_k2prime_values) if roi_k2prime_values else 0
+        roi_summary[roi_name]['k2prime_std'] = np.std(roi_k2prime_values) if roi_k2prime_values else 0
+        
+        if verbose:
+            print(f"  ROI {roi_name}: {roi_summary[roi_name]['valid_voxels']} valid / "
+                  f"{roi_summary[roi_name]['total_voxels']} total "
+                  f"({roi_summary[roi_name]['success_rate']:.1f}% success)")
+            if roi_k2prime_values:
+                print(f"    k2prime: {roi_summary[roi_name]['k2prime_mean']:.4f} ± "
+                      f"{roi_summary[roi_name]['k2prime_std']:.4f}")
+    
+    # Check if we have any valid estimates
+    if len(k2prime_values) == 0:
+        raise ValueError("No valid k2prime estimates obtained from any voxel!")
+    
+    # Calculate global k2prime
+    global_k2prime = np.median(k2prime_values)
+    
+    # Final validation and clamping
+    if not (0.001 <= global_k2prime <= 1.0):
+        if verbose:
+            print(f":warning: Warning: Global k2prime {global_k2prime:.4f} is outside expected range [0.001, 1.0]")
+        global_k2prime = np.clip(global_k2prime, 0.001, 1.0)
+        if verbose:
+            print(f"Clamped to: {global_k2prime:.4f}")
+    
+    
+    # Calculate ROI-specific statistics
+    for roi_name in roi_summary.keys():
+        roi_k2prime_values = roi_summary[roi_name]['k2prime_values']
+        roi_summary[roi_name]['success_rate'] = (
+            roi_summary[roi_name]['valid_voxels'] / roi_summary[roi_name]['total_voxels'] * 100 
+            if roi_summary[roi_name]['total_voxels'] > 0 else 0
+        )
+        roi_summary[roi_name]['k2prime_mean'] = np.mean(roi_k2prime_values) if roi_k2prime_values else 0
+        roi_summary[roi_name]['k2prime_std'] = np.std(roi_k2prime_values) if roi_k2prime_values else 0
+        
+        if verbose:
+            print(f"  ROI {roi_name}: {roi_summary[roi_name]['valid_voxels']} valid / "
+                  f"{roi_summary[roi_name]['total_voxels']} total "
+                  f"({roi_summary[roi_name]['success_rate']:.1f}% success)")
+            if roi_k2prime_values:
+                print(f"    k2prime: {roi_summary[roi_name]['k2prime_mean']:.4f} ± "
+                      f"{roi_summary[roi_name]['k2prime_std']:.4f}")
+    
+    # Check if we have any valid estimates
+    if len(k2prime_values) == 0:
+        raise ValueError("No valid k2prime estimates obtained from any voxel!")
+    
+    # Calculate global k2prime
+    global_k2prime = np.median(k2prime_values)
+    
+    # Final validation and clamping
+    if not (0.001 <= global_k2prime <= 1.0):
+        if verbose:
+            print(f":warning: Warning: Global k2prime {global_k2prime:.4f} is outside expected range [0.001, 1.0]")
+        global_k2prime = np.clip(global_k2prime, 0.001, 1.0)
+        if verbose:
+            print(f"Clamped to: {global_k2prime:.4f}")
+
+    # Summary output
+    if verbose:
+        print(f"\n:bar_chart: Voxel-wise k2prime estimation summary:")
+        print(f"  Total voxels processed: {total_voxels_processed}")
+        print(f"  Valid voxels: {len(k2prime_values)}")
+        print(f"  Overall success rate: {len(k2prime_values)/total_voxels_processed*100:.1f}%")
+        print(f"  k2prime range: [{np.min(k2prime_values):.4f}, {np.max(k2prime_values):.4f}]")
+        print(f"  k2prime mean: {np.mean(k2prime_values):.4f}")
+        print(f"  k2prime median: {global_k2prime:.4f}")
+        print(f"  k2prime std: {np.std(k2prime_values):.4f}")
+        print(f"  k2prime CV: {np.std(k2prime_values)/np.mean(k2prime_values)*100:.1f}%")
+    
+    return {
+        'global_k2prime': global_k2prime,
+        'k2prime_values': k2prime_values,
+        'roi_results': roi_summary,
+        'k2prime_mean': np.mean(k2prime_values),
+        'k2prime_std': np.std(k2prime_values),
+        'k2prime_cv': np.std(k2prime_values)/np.mean(k2prime_values)*100,
+        'success_rate': len(k2prime_values)/total_voxels_processed*100
+    }
+
 def estimate_k2prime(t_tac, ref_tac, roi_tacs, frame_durations,
                       multstart_iter=100, verbose=True,
                       k2_prime_threshold=0.03, k2_prime_upper_limit=0.4,

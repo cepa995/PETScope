@@ -42,9 +42,6 @@ def generate_subject_json(subject_pet_4d_path: str) -> str:
             or if the JSON data is invalid.
         KeyError: If required keys are missing in the JSON object.
         ValueError: If any required keys have empty or invalid values.
-
-    Example:
-        generate_subject_json("/path/to/pet_4d_image.nii")
     """
     # Generate the file path for the output JSON
     file_path, _ = os.path.splitext(subject_pet_4d_path)
@@ -78,9 +75,6 @@ def _is_json_valid(json_object: dict) -> bool:
     Raises:
         KeyError: If required keys are missing in the JSON object.
         ValueError: If any required keys have empty or invalid values.
-
-    Example:
-        _is_json_valid({"key1": "value", "key2": 42})
     """
     # Check for missing keys
     missing_keys = set(REQUIRED_KEYS) - set(json_object.keys())

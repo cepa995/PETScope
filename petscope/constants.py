@@ -1,5 +1,19 @@
 import os
 
+# Supported CLI Tasks
+# -------------------------
+# Defines list of supported CLI tasks and their corresponding file extensions
+SUPPORTED_TASKS_DICT = {
+    "registration" : [".nii", ".nii.gz"]
+}
+
+# Supported Kinetic Pet Modeling models
+# ---------------------------
+# Defines list of models for which wrapper function has been implemented
+SUPPORTED_DYNAMICPET_MODELS = {
+    "SRTMZhou2003"
+}
+
 # Custom Pipeline constants
 # -------------------------
 # Defines dictionary for supported commands which can be used to create custom pipeline

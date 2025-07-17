@@ -270,7 +270,7 @@ class SRTM2Validator:
                 # Check for systematic bias
                 bp_bias_pct = (BP_mean - true_params['BP']) / max(true_params['BP'], 0.1) * 100
                 if abs(bp_bias_pct) > 10:
-                    print(f"    ⚠️ HIGH BP BIAS: {bp_bias_pct:.1f}%")
+                    print(f"    :warning: HIGH BP BIAS: {bp_bias_pct:.1f}%")
                     
             else:
                 print(f"    All fits failed for noise level {noise_level}")

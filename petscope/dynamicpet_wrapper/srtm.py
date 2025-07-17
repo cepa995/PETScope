@@ -32,15 +32,6 @@ def compute_target_region_stats(
     Outputs:
         - A binary mask of the target region saved as '<target_region>_binary.nii.gz' in the output directory.
         - A CSV file ('statistics.csv') containing statistical metrics computed within the target region.
-
-    Example:
-        compute_target_region_stats(
-            dvr_path="/path/to/dvr_image.nii.gz",
-            template_path="/path/to/template.nii.gz",
-            template_name="MNI152",
-            target_region="Hippocampus",
-            output_dir="/path/to/output"
-        )
     """
     # Create a target region mask from a specified template
     target_mask_path = os.path.join(output_dir, f"{target_region}.nii.gz")
@@ -100,17 +91,6 @@ def call_srtm(
 
     Raises:
         SRTMDynamicPETException: If the SRTM computation fails.
-
-    Example:
-        call_srtm(
-            pet_4d_path="/path/to/pet_image.nii",
-            template_path="/path/to/template.nii",
-            reference_region="WholeCerebellum",
-            target_region="Hippocampus",
-            output_dir="/path/to/output",
-            model="SRTMZhou2003",
-            fwhm="5"
-        )
     """
     # Create a directory for results that will be mounted to the Docker container
     srtm_results_mounted_dir = os.path.join(output_dir, 'results')

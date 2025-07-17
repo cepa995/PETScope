@@ -2,6 +2,7 @@ import os
 import nibabel as nib
 import matplotlib.pyplot as plt
 import numpy as np
+from typing import Dict
 from petscope.utils import get_reference_region_mask, get_target_region_mask
 
 
@@ -276,6 +277,57 @@ def prepare_rois(pet_data, brain_mask, roi_regions, template_path, template_name
     
     return {'roi_tacs': roi_tacs}
 
+
+def prepare_roi_masks(brain_mask, roi_regions, template_path, template_name, 
+                      output_dir, verbose=True) -> Dict:
+    """
+    Prepare ROI masks for voxel-wise k2prime estimation.
+    
+    Args:
+        brain_mask (ndarray): Brain mask array
+        roi_regions (list): List of ROI names
+        template_path (str): Path to template/atlas
+        template_name (str): Name of template/atlas
+        output_dir (str): Directory for output files
+        affine (ndarray): Affine transformation matrix
+        header (nibabel header): NIfTI header
+        verbose (bool): Flag to enable detailed output
+        
+    Returns:
+        dict: Dictionary containing ROI masks
+    """
+    if verbose:
+        print("\nPreparing ROI masks for voxel-wise k2prime estimation...")
+    
+    # This function would need to be implemented to load ROI masks
+    # from your template/atlas system. The exact implementation depends
+    # on your template format and naming conventions.
+    
+    roi_masks = {}
+    
+    for roi_name in roi_regions:
+        if verbose:
+            print(f"  Loading mask for {roi_name}...")
+        
+        # Create a target region mask from a specified template
+        target_mask_path = os.path.join(output_dir, f"{roi_name}.nii.gz")
+        roi_mask_nii = get_target_region_mask(
+            template_path=template_path,
+            template_name=template_name,
+            target_name=roi_name,
+            mask_out=target_mask_path
+        )
+
+        # Ensure mask is within brain
+        roi_mask = roi_mask_nii.get_fdata()
+
+        roi_masks[roi_name] = roi_mask
+        if verbose:
+            print(f"    {roi_name}: {np.sum(roi_mask)} voxels")
+    
+    return {
+        "roi_masks": roi_masks
+    }
 
 def save_results(parametric_images, affine, header, output_dir, roi_tacs, roi_results, 
                  k2prime_values, global_k2prime, verbose=True):

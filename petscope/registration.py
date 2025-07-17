@@ -36,16 +36,6 @@ def ants_registration(
         ANTsImageReadException: If the images cannot be read by ANTs.
         ANTsRegistrationException: If an error occurs during the registration process.
         ANTsApplyTransformsException: If an error occurs while applying the transformations.
-
-    Example:
-        transform_path = ants_registration(
-            moving_img_path="/path/to/pet_image.nii",
-            fixed_img_path="/path/to/t1_image.nii",
-            registration_dir="/path/to/output",
-            filename_moving_to_fixed="pet_in_t1_space.nii",
-            filename_fixed_to_moving="t1_in_pet_space.nii",
-            type_of_transform="Rigid"
-        )
     """
     # Ensure valid registration type has been passed
     if type_of_transform not in SUPPORTED_ANTS_TRANSFORM_TYPES:
@@ -133,16 +123,6 @@ def ants_warp_image(
     Raises:
         ANTsImageReadException: If the images cannot be read by ANTs.
         ANTsApplyTransformsException: If an error occurs while applying the transformation.
-
-    Example:
-        warped_image = ants_warp_image(
-            fixed_img_path="/path/to/fixed_image.nii",
-            moving_img_path="/path/to/moving_image.nii",
-            transform_path="/path/to/transform.mat",
-            output_path="/path/to/warped_image.nii",
-            is_inverse=False,
-            interpolator="linear"
-        )
     """
     try:
         # Read the images

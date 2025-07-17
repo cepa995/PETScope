@@ -4,12 +4,14 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from rich import print
-from petscope.kinetic_modeling.srtm2 import srtm2, calculate_weights, estimate_k2prime
-from petscope.kinetic_modeling.utils import prepare_pet_data, create_masks, prepare_rois, save_results, diagnostic_plots
+from petscope.kinetic_modeling.srtm2 import srtm2, calculate_weights, estimate_k2prime, estimate_k2prime_voxelwise
+from petscope.kinetic_modeling.utils import prepare_pet_data, create_masks, prepare_rois, \
+      save_results, diagnostic_plots, prepare_roi_masks
 from petscope.dynamicpet_wrapper.srtm import compute_target_region_stats
 
+
 def compute_DVR_image(pet_file, output_dir, frame_durations, template_path, template_name, reference_region, 
-                        roi_regions=None, multstart_iter=100, verbose=True):
+                        roi_regions=None, multstart_iter=100, k2prime_method='voxel_based', verbose=True):
     """
     Process a complete PET study to generate DVR images using the two-pass SRTM2 approach.
     This is the main controller function that coordinates the entire process.
@@ -23,18 +25,29 @@ def compute_DVR_image(pet_file, output_dir, frame_durations, template_path, temp
         reference_region (str): Name of the reference region (e.g., 'cerebellum')
         roi_regions (list, optional): List of ROI names for k2prime estimation
         multstart_iter (int, optional): Number of multi-start iterations for ROI fitting
+        k2prime_method (str, optional): Method for k2prime estimation. Options:
+            - 'tac_based': Use ROI-averaged TACs (faster, current method)
+            - 'voxel_based': Use individual voxels within ROIs (more rigorous)
         verbose (bool, optional): Whether to print detailed progress information
     
     Returns:
         dict: Dictionary containing paths to output files and parameter estimates
     """
+    # Validate k2prime_method parameter
+    valid_methods = ['tac_based', 'voxel_based']
+    if k2prime_method not in valid_methods:
+        raise ValueError(f"k2prime_method must be one of {valid_methods}, got '{k2prime_method}'")
+    
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
     
-    # 1. Prepare PET data (unchanged)
+    if verbose:
+        print(f"Using k2prime estimation method: {k2prime_method}")
+    
+    # 1. Prepare PET data 
     pet_info = prepare_pet_data(pet_file, frame_durations, verbose)
     
-    # 2. Create masks (unchanged)
+    # 2. Create masks 
     masks_info = create_masks(
         pet_info['pet_data'], 
         template_path, 
@@ -44,31 +57,55 @@ def compute_DVR_image(pet_file, output_dir, frame_durations, template_path, temp
         verbose
     )
     
-    # 3. FIXED: Prepare ROIs for k2prime estimation
-    roi_info = prepare_rois(
-        pet_info['pet_data'], 
-        masks_info['brain_mask'], 
-        roi_regions, 
-        template_path, 
-        template_name, 
-        output_dir, 
-        pet_info['affine'], 
-        pet_info['header'], 
-        pet_info['t_tac'],
-        verbose
-    )
+    # 3. Prepare ROIs for k2prime estimation
+    if k2prime_method == 'tac_based':
+        # Prepare averaged TACs
+        roi_info = prepare_rois(
+            pet_info['pet_data'], 
+            masks_info['brain_mask'], 
+            roi_regions, 
+            template_path, 
+            template_name, 
+            output_dir, 
+            pet_info['affine'], 
+            pet_info['header'], 
+            pet_info['t_tac'],
+            verbose
+        )
+        
+        # 4. First pass - estimate k2prime from ROI TACs
+        k2prime_info = estimate_k2prime(
+            t_tac=pet_info['t_tac'], 
+            ref_tac=masks_info['ref_tac'], 
+            roi_tacs=roi_info['roi_tacs'], 
+            multstart_iter=multstart_iter, 
+            frame_durations=frame_durations,
+            verbose=verbose,
+        )
+        
+    elif k2prime_method == 'voxel_based':
+        # New method: prepare ROI masks for voxel-wise analysis
+        roi_info = prepare_roi_masks(
+            masks_info['brain_mask'], 
+            roi_regions, 
+            template_path, 
+            template_name, 
+            output_dir, 
+            verbose
+        )
+        
+        # 4. First pass - estimate k2prime from individual voxels
+        k2prime_info = estimate_k2prime_voxelwise(
+            pet_data=pet_info['pet_data'],
+            t_tac=pet_info['t_tac'], 
+            ref_tac=masks_info['ref_tac'], 
+            roi_masks=roi_info['roi_masks'], 
+            multstart_iter=multstart_iter, 
+            frame_durations=frame_durations,
+            verbose=verbose,
+        )
     
-    # 4. FIXED: First pass - estimate k2prime from ROIs
-    k2prime_info = estimate_k2prime(
-        t_tac=pet_info['t_tac'], 
-        ref_tac=masks_info['ref_tac'], 
-        roi_tacs=roi_info['roi_tacs'], 
-        multstart_iter=multstart_iter, 
-        frame_durations=frame_durations,
-        verbose=verbose,
-    )
-    
-    # 5. FIXED: Second pass - create parametric images with fixed k2prime
+    # 5. Second pass - create parametric images with fixed k2prime
     parametric_images = create_parametric_images(
         pet_data=pet_info['pet_data'], 
         t_tac=pet_info['t_tac'], 
@@ -79,7 +116,7 @@ def compute_DVR_image(pet_file, output_dir, frame_durations, template_path, temp
         verbose=verbose
     )
     
-    # 6. Save results (unchanged)
+    # 6. Save results 
     output_paths = save_results(
         parametric_images, 
         pet_info['affine'], 
@@ -92,7 +129,7 @@ def compute_DVR_image(pet_file, output_dir, frame_durations, template_path, temp
         verbose
     )
     
-    # 7. IMPROVED: Create comprehensive diagnostic plots
+    # 7. Create comprehensive diagnostic plots
     diag_path = diagnostic_plots(
         parametric_images, 
         k2prime_info['global_k2prime'], 
@@ -101,7 +138,7 @@ def compute_DVR_image(pet_file, output_dir, frame_durations, template_path, temp
         verbose
     )
 
-    # 8. Compute statistics (unchanged)
+    # 8. Compute statistics 
     dvr_path = os.path.join(output_dir, 'srtm2_dvr.nii.gz')
     if roi_regions:
         for target_region in roi_regions:
@@ -114,8 +151,8 @@ def compute_DVR_image(pet_file, output_dir, frame_durations, template_path, temp
             )
 
     if verbose:
-        print(f"\n✅ FIXED SRTM2 DVR processing complete. Results saved to {output_dir}")
-        print(f"📊 Diagnostic plots: {diag_path}")
+        print(f"\n:white_check_mark: SRTM2 DVR processing complete. Results saved to {output_dir}")
+        print(f":bar_chart: Diagnostic plots: {diag_path}")
     
     return {
         'dvr_path': output_paths['dvr_path'],
@@ -143,7 +180,7 @@ def create_parametric_images(pet_data, t_tac, ref_tac, brain_mask, global_k2prim
         dict: Dictionary containing parametric images
     """
     if verbose:
-        print("\nSecond pass: Generating voxel-wise parametric images (FIXED VERSION)...")
+        print("\nSecond pass: Generating voxel-wise parametric images...")
         print(f"Using fixed k2prime: {global_k2prime:.4f}")
     
     # Initialize output parameter volumes
@@ -153,9 +190,8 @@ def create_parametric_images(pet_data, t_tac, ref_tac, brain_mask, global_k2prim
     dvr_img = np.zeros(shape)
     k2a_img = np.zeros(shape)
     
-    # IMPROVEMENT 1: Tighter, more physiological parameter bounds
     R1_bounds = (0.5, 2.0)  # Tighter range than (0.0, 5.0)
-    bp_bounds = (0.0, 8.0)  # Allow slightly negative but not extreme values
+    bp_bounds = (-0.5, 8.0)  # Allow slightly negative but not extreme values
     
     # Count masked voxels for progress tracking
     total_voxels = np.sum(brain_mask)
@@ -257,7 +293,6 @@ def create_parametric_images(pet_data, t_tac, ref_tac, brain_mask, global_k2prim
         print(f"  Failed fits: {fail_counter} ({fail_percentage:.1f}%)")
         print(f"  Boundary hits: {bound_hit_counter} ({bound_percentage:.1f}%)")
         
-        # IMPROVEMENT 5: Parameter range diagnostics
         valid_mask = brain_mask & (R1_img > 0)
         if np.sum(valid_mask) > 0:
             print(f"  Parameter ranges in valid voxels:")

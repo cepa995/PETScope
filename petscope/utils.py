@@ -12,8 +12,22 @@ from typing import Any, Dict, Union, List
 from nilearn.image import mean_img, concat_imgs
 from scipy.signal import savgol_filter
 from petscope.constants import REFERENCE_REGIONS, TARGET_REGIONS, SETTINGS_JSON, SUPPORTED_PHYSICAL_SPACES, \
-    SUPPORTED_REFERENCE_REGIONS
+    SUPPORTED_REFERENCE_REGIONS, SUPPORTED_TASKS_DICT, SUPPORTED_DYNAMICPET_MODELS
 from typing import Dict, List
+
+def check_if_model_is_supported(model: str) -> bool:
+    """
+    Checks if specified model  is supported by dynamicpet package
+
+    https://github.com/bilgelm/dynamicpet
+
+    Args:
+        model (str): Name of the model used for kinetic pet modeling (e.g. SRTMZhou2003)
+    Returns:
+        bool: True if the specified model is supported, False otherwise
+
+    """
+    return model in SUPPORTED_DYNAMICPET_MODELS
 
 def check_if_reference_region_is_supported(reference_region: str) -> bool:
     """
@@ -51,9 +65,6 @@ def copy_file_to_directory(file_path, target_directory):
 
     Returns:
         str: Absolute path to the copied file in the target directory.
-
-    Example:
-        copy_file_to_directory("/path/to/file.nii", "/target/directory/")
     """
     os.makedirs(target_directory, exist_ok=True)
     target_path = os.path.join(target_directory, os.path.basename(file_path))
@@ -96,15 +107,6 @@ def generate_docker_run_cmd(
 
     Returns:
         List[str]: The composed Docker run command as a list of strings.
-
-    Example:
-        generate_docker_run_cmd(
-            image_name="my_docker_image",
-            mount_points={"/local/data": "/container/data"},
-            env_variables={"MY_VAR": "value"},
-            gpus=1,
-            commands=["python", "script.py"]
-        )
     """
     docker_command = ["docker", "run"]
 
@@ -169,9 +171,6 @@ def validate_settings_json(pet_image_path: str, settings_json: Dict[str, Any]) -
         FrameNumberMismatchException: If the number of PET frames does not match the JSON configuration.
         FrameStartTimeAndOrDurationException: If frame start times and durations do not align.
         PETDataUnitsException: If the PET image data units are not in kBq/mL.
-
-    Example:
-        validate_settings_json("/path/to/pet_image.nii", settings_json)
     """
     # Sample JSON structure with required keys and corresponding value types
     sample_json = {
@@ -294,9 +293,6 @@ def read_settings_json(pet_image_path: str) -> Dict[str, Union[int, str, List[st
     Raises:
         SettingsJSONTemplateNotFoundException: If the settings JSON template is not found.
         InvalidSettingsJSONTemplateFileException: If the settings JSON file is invalid.
-
-    Example:
-        settings = read_settings_json("/path/to/pet_image.nii")
     """
     # Check if the path to settings JSON template exists
     if not os.path.exists(SETTINGS_JSON):
@@ -336,14 +332,6 @@ def get_reference_region_mask(
 
     Returns:
         nib.Nifti1Image: The created 3D reference region mask as a NIfTI image.
-
-    Example:
-        get_reference_region_mask(
-            "/path/to/template.nii",
-            "FreeSurfer",
-            "WholeCerebellum",
-            "/output/mask.nii"
-        )
     """
     reference_region_labels = REFERENCE_REGIONS[template_name][reference_name]
     # Create output directory if it doesn't exist
@@ -381,14 +369,6 @@ def get_target_region_mask(
 
     Returns:
         nib.Nifti1Image: The created 3D target region mask as a NIfTI image.
-
-    Example:
-        get_reference_region_mask(
-            "/path/to/template.nii",
-            "FreeSurfer",
-            "WholeCerebellum",
-            "/output/mask.nii"
-        )
     """
     target_region_labels = TARGET_REGIONS[template_name][target_name]
     # Create output directory if it doesn't exist
@@ -419,8 +399,6 @@ def c3d_binarize_image(
     Args:
         image_path (str): Absolute path to the input image.
         output_path (str): Absolute path to save the output image.
-    Example:
-        c3d_binarize_image("/path/to/image.nii", "/output/image_binary.nii")
     """
     # Define C3D command
     command_thresh = [
@@ -444,8 +422,6 @@ def c3d_compute_statistics(
         image_path (str): Absolute path to the input image.
         mask_path (str): Absolute path to the input mask.
         output_path (str): Absolute path to the statistics file.
-    Example:
-        c3d_compute_statistics("/path/to/image.nii", "/output/image_binary.nii", "/output/stats.txt")
     """
     # Compute statistics over the image 
     subprocess.run(f'c3d {image_path} {mask_path} -lstat > {output_path}', shell=True)
@@ -493,20 +469,6 @@ def compute_time_activity_curve(
         - The reference region mask is derived from the template and the specified reference name.
         - If smoothing parameters are provided, the TAC is smoothed using the Savitzky-Golay filter.
         - Debug mode saves intermediate masked images for each time frame to the output directory.
-
-    Example:
-        compute_time_activity_curve(
-            pet_image_path="path/to/pet_image.nii",
-            template_path="path/to/template.nii",
-            template_name="FreeSurfer",
-            reference_name="WholeCerebellum",
-            time_activity_curve_out="path/to/output/tac.png",
-            frame_start_times=[0, 60, 120],
-            frame_durations=[60, 60, 60],
-            window_length=5,
-            polyorder=3,
-            debug=True
-        )
     """
     # Create directory if it does not exist
     dirname = os.path.dirname(time_activity_curve_out)
@@ -583,9 +545,6 @@ def change_dtype(image_path, output_path, dtype):
         image_path (str): Absolute path to the input image.
         output_path (str): Absolute path to save the output image.
         dtype (str): Target data type (e.g., "char", "float", "int").
-
-    Example:
-        change_dtype("/path/to/image.nii", "/output/image.nii", "float")
     """
     subprocess.run([
         'c3d',
@@ -603,9 +562,6 @@ def change_orientation(image_path, output_path, orientation_code='RSA'):
         image_path (str): Absolute path to the input image.
         output_path (str): Absolute path to save the output image.
         orientation_code (str): Orientation code (e.g., "RSA", "LPI").
-
-    Example:
-        change_orientation("/path/to/image.nii", "/output/image.nii", "LPI")
     """
     subprocess.run([
         'c3d',
@@ -625,9 +581,6 @@ def compute_4d_image(volume_dir, img_4d_out):
 
     Returns:
         nib.Nifti1Image: The created 4D image.
-
-    Example:
-        compute_4d_image("/path/to/3d_volumes", "/output/4d_image.nii")
     """
     volumes_nii = [nib.load(os.path.join(volume_dir, f)) for f in os.listdir(volume_dir)]
     img_4d_nii = concat_imgs(volumes_nii)
@@ -645,9 +598,6 @@ def compute_mean_volume(volume_dir, mean_3d_out):
 
     Returns:
         nib.Nifti1Image: The computed mean 3D image.
-
-    Example:
-        compute_mean_volume("/path/to/3d_volumes", "/output/mean_image.nii")
     """
     volumes_nii = [nib.load(os.path.join(volume_dir, f)) for f in os.listdir(volume_dir)]
     mean_3d_image = mean_img(volumes_nii, volumes_nii[0].affine)
@@ -665,9 +615,6 @@ def compute_3D_volume(nifti_4d_path, output_file):
 
     Returns:
         nib.Nifti1Image: The resulting 3D image.
-
-    Example:
-        compute_3D_volume("/path/to/4d_image.nii", "/output/3d_image.nii")
     """   
     nifti_4d = nib.load(nifti_4d_path)
     nifti_4d_data = nifti_4d.get_fdata()
@@ -700,9 +647,6 @@ def convert_4d_to_3d(img_4d_path, img_3d_dir, prefix='pet_3d_', orientation=None
         img_3d_dir (str): Directory to save the 3D volumes.
         prefix (str, optional): Prefix for the 3D volume filenames. Defaults to 'pet_3d_'.
         orientation (str, optional): Orientation code to apply to each volume.
-
-    Example:
-        convert_4d_to_3d("/path/to/4d_image.nii", "/output/3d_volumes")
     """
     os.makedirs(img_3d_dir, exist_ok=True)
     img_4d_nii = nib.load(img_4d_path)
@@ -732,9 +676,6 @@ def get_orientation(nifti_image_path) -> str:
 
     Returns:
         str: Orientation code (e.g., "RSA", "LPI").
-
-    Example:
-        orientation = get_orientation("/path/to/image.nii")
     """
     image_nii = nib.load(nifti_image_path)
     x, y, z = nib.aff2axcodes(image_nii.affine)
@@ -749,9 +690,6 @@ def extract_image_info(image_path):
 
     Returns:
         Tuple[List[float], List[List[float]], str]: Dimensions, bounding box, and orientation.
-
-    Example:
-        dim, bb, orient = extract_image_info("/path/to/image.nii")
     """
     c3d_info_cmd = ["c3d", image_path, "-info"]
     result = subprocess.run(c3d_info_cmd, capture_output=True, text=True)
@@ -779,9 +717,6 @@ def c3d_space_check(image1_path, image2_path) -> bool:
 
     Returns:
         bool: True if the images share the same space, False otherwise.
-
-    Example:
-        same_space = c3d_space_check("/path/to/image1.nii", "/path/to/image2.nii")
     """
     dim1, bb1, orient1 = extract_image_info(image1_path)
     dim2, bb2, orient2 = extract_image_info(image2_path)
@@ -795,9 +730,6 @@ def c3d_copy_transform(src, dst) -> None:
     Args:
         src (str): Absolute path to the source image.
         dst (str): Absolute path to the destination image.
-
-    Example:
-        c3d_copy_transform("/path/to/source.nii", "/path/to/destination.nii")
     """
     subprocess.run([
         'c3d',
@@ -806,3 +738,24 @@ def c3d_copy_transform(src, dst) -> None:
         '-copy-transform',
         "-o", dst
     ])
+
+def is_ext_supported(path, task) -> bool:
+    """
+    Checks if the extension for the provided path and
+    a given task is supported.
+
+    Arguments:
+        - path (str): absolute path to the file
+        - task (str): predefined task, such as registration
+    Returns:
+        - True if the extension is indeed supported, False 
+        otherwise
+    """
+    if task not in SUPPORTED_TASKS_DICT:
+        raise KeyError(f":x: Task {task} is not supported.")
+    elif '.' not in path:
+        raise ValueError(f":x: {path} is not a valid path")
+    
+    # Extract the extension from path
+    extension = path.split('.')[1]
+    return True if extension in SUPPORTED_TASKS_DICT[task] else False

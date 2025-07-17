@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import nibabel as nib
 from rich import print
 from petscope.constants import TARGET_REGIONS
 from typing import Dict, Any, List, Callable
@@ -9,7 +10,7 @@ from petscope.dynamicpet_wrapper.srtm import call_srtm
 from petscope.registration import ants_registration, ants_warp_image
 from petscope.utils import compute_time_activity_curve, convert_4d_to_3d,\
       compute_mean_volume, compute_4d_image, c3d_space_check, check_if_physical_space_is_supported, \
-      check_if_reference_region_is_supported
+      check_if_reference_region_is_supported, check_if_model_is_supported
 from petscope.petpvc_wrapper.utils import petpvc_create_4d_mask, check_if_pvc_method_is_supported
 from petscope.petpvc_wrapper.petpvc import run_petpvc_iterative_yang
 from petscope.spm_wrapper.spm import spm_realignment, PET_REALIGN
@@ -143,16 +144,9 @@ class PETScope:
         for step in pipeline:
             pass
         
-        # TODO:
-        # 1. Determine necessary inputs by checking the list of functions to be executed
-        # 2. Determine necessary utility/helper functions which need to be paired with each
-        # of the functions from the pipeline (for some this step may not be applicable, but
-        # for others, like let's say 'compute 3d volume', we need a utility function to 
-        # convert 4d image to 3d images)
-
     def coregister_pet_and_mr(
         self,
-        pet_4d_path: str,
+        pet_path: str,
         t1_3d_path: str,
         type_of_transform: str,
         output_dir: str
@@ -164,7 +158,7 @@ class PETScope:
         and registers the mean PET image to the T1 image using the specified transformation type.
 
         Args:
-            pet_4d_path (str): Absolute path to the input 4D PET image.
+            pet_path (str): Absolute path to the input 3D or 4D PET image.
             t1_3d_path (str): Absolute path to the input T1 image.
             type_of_transform (str): Type of transformation to perform (e.g., "Rigid", "Affine").
             output_dir (str): Directory to save the registration results.
@@ -174,36 +168,38 @@ class PETScope:
 
         Example:
             coregister_pet_and_mr((
-                pet_4d_path="/path/to/pet_4d.nii",
+                pet_path="/path/to/pet_4d.nii",
                 t1_3d_path="/path/to/t1.nii",
                 type_of_transform="Rigid",
                 output_dir="/path/to/output"
             )
         """
-        # Convert 4D PET image to sequence of 3D volumes
-        print(":gear: STEP 1. [bold green]Converting 4D PET to Sequence of 3D Volumes")
-        pet_3d_volumes_dir = os.path.join(output_dir, "pet_3d_volumes")
-        os.makedirs(pet_3d_volumes_dir, exist_ok=True)
-        convert_4d_to_3d(
-            img_4d_path=pet_4d_path,
-            img_3d_dir=pet_3d_volumes_dir,
-            orientation='RSA'
-        )
+        pet_img_dims = nib.load(pet_path).get_fdata().shape
+        if len(pet_img_dims) == 4:
+            # Convert 4D PET image to sequence of 3D volumes
+            print(":gear: STEP 1. [bold green]Converting 4D PET to Sequence of 3D Volumes")
+            pet_3d_volumes_dir = os.path.join(output_dir, "pet_3d_volumes")
+            os.makedirs(pet_3d_volumes_dir, exist_ok=True)
+            convert_4d_to_3d(
+                img_4d_path=pet_path,
+                img_3d_dir=pet_3d_volumes_dir,
+                orientation='RSA'
+            )
 
-        # Compute PET 3D Mean Volume
-        print(":gear: STEP 2. [bold green]Computing MEAN 3D Volume")
-        pet_3d_mean_volume_path = os.path.join(output_dir, 'pet_3d_mean.nii')
-        _ = compute_mean_volume(
-            volume_dir=pet_3d_volumes_dir,
-            mean_3d_out=pet_3d_mean_volume_path
-        )
+            # Compute PET 3D Mean Volume
+            print(":gear: STEP 2. [bold green]Computing MEAN 3D Volume")
+            pet_path = os.path.join(output_dir, 'pet_3d_mean.nii')
+            _ = compute_mean_volume(
+                volume_dir=pet_3d_volumes_dir,
+                mean_3d_out=pet_path
+            )
 
         # Rigid Registration - PET to T1 Space
         print(f":gear: STEP 3. [bold green]Running ANTs {type_of_transform} Registration")
         registration_dir = os.path.join(output_dir, 'pet_to_t1_registration')
         os.makedirs(registration_dir, exist_ok=True)
         _ = ants_registration(
-            moving_img_path=pet_3d_mean_volume_path,
+            moving_img_path=pet_path,
             fixed_img_path=t1_3d_path,
             registration_dir=registration_dir,
             filename_fixed_to_moving='t1_pet_space.nii',
@@ -262,26 +258,6 @@ class PETScope:
             NotSamePhysicalSpaceException: If the T1 and template images are not in the same space.
             PVCMethodSupportException: If the specified PVC method is not supported.
             PhysicalSpaceSupportException: If the specified physical space is not supported.
-
-        Example:
-            run_srtm(
-                pet_4d_path="/path/to/pet_4d.nii",
-                t1_3d_path="/path/to/t1.nii",
-                template_path="/path/to/template.nii",
-                template="FreeSurfer",
-                physical_space="MRI_PHYSICAL_SPACE",
-                reference_region="WholeCerebellum",
-                target_region="Hippocampus",
-                output_dir="/path/to/output",
-                model="SRTM",
-                pvc_method="Iterative Yang",
-                window_size=5,
-                polynomial_order=3,
-                pet_json={
-                    "FrameTimesStart": [0, 60, 120],
-                    "FrameDuration": [60, 60, 60]
-                }
-            )
         """
         print(":gear: STEP 0. [bold green]Validating Input Arguments")
         # Check if T1 image and Template image are in the same space
@@ -305,6 +281,11 @@ class PETScope:
             from petscope.exceptions import ReferenceRegionSupportException
             raise ReferenceRegionSupportException(f"Specified reference region - {reference_region} is NOT supported " + 
                                             f" . Please choose one of the following {SUPPORTED_REFERENCE_REGIONS}")
+        # Check if model argument is specified, in that case we rely on dynamicpet package (https://github.com/bilgelm/dynamicpet)
+        if model and not check_if_model_is_supported(model):
+            from petscope.exceptions import DynmicPetWrapperException
+            raise DynmicPetWrapperException(f"Model {model} is not supported by dynamicpet. Please choose" + 
+                                            f" one of the following models {SUPPORTED_DYNAMICPET_MODELS}")
         print("\t:white_heavy_check_mark: [bold green]INPUTS ARE VALID!")
         
         # Realignment via SPM
@@ -431,17 +412,30 @@ class PETScope:
             frame_durations=pet_json["FrameDuration"]
         )
 
-        # Execute Simplified Reference Tissue Model2 (SRTM2)
-        srtm2_results_dir = os.path.join(output_dir, 'SRTM2_RESULTS')
+        # Define list of target regions (if not specified, take all the ones specified within the FreeSurfer)
+        srtm_results_dir = os.path.join(output_dir, 'SRTM_RESULTS')
         target_regions = [target_region] if target_region else [region for region in TARGET_REGIONS['FreeSurfer'] if region != reference_region]
-        compute_DVR_image(
-            pet_file=pet_4d_rsa_volume_path,
-            frame_durations=np.array(pet_json['FrameDuration']),
-            output_dir=srtm2_results_dir,
-            template_path=template_pet_space_path if physical_space and physical_space != MRI_PHYSICAL_SPACE else template_path,
-            template_name=template,
-            roi_regions= target_regions,
-            reference_region=reference_region
-        )
+        if not model:
+            # Execute Simplified Reference Tissue Model2 (SRTM2)
+            compute_DVR_image(
+                pet_file=pet_4d_rsa_volume_path,
+                frame_durations=np.array(pet_json['FrameDuration']),
+                output_dir=srtm_results_dir,
+                template_path=template_pet_space_path if physical_space and physical_space != MRI_PHYSICAL_SPACE else template_path,
+                template_name=template,
+                roi_regions= target_regions,
+                reference_region=reference_region
+            )
+        else:
+            # Perform SRTM with dynamicpet
+            call_srtm(
+                pet_4d_path=pet_4d_rsa_volume_path,
+                template_name=template,
+                template_path=template_pet_space_path if physical_space and physical_space != MRI_PHYSICAL_SPACE else template_path,
+                reference_region=reference_region,
+                model=model,
+                target_regions=target_regions,
+                output_dir=srtm_results_dir
+            )
 
         return 0

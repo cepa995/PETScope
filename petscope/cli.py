@@ -8,7 +8,7 @@ from typing_extensions import Annotated
 from petscope import __app_name__, __version__
 from petscope.petscope import PETScope
 from petscope.system import system_check
-from petscope.utils import read_settings_json
+from petscope.utils import read_settings_json, is_ext_supported
 
 
 # Initialize Typer Application
@@ -62,7 +62,7 @@ def get_petscope() -> PETScope:
 
 @app.command(name="pet_to_mri")
 def coregister_pet_and_mr(
-    pet_4d_path: Annotated[str, typer.Argument(help="Absolute path to the PET 4D Image")],
+    pet_path: Annotated[str, typer.Argument(help="Absolute path to the PET 3D or 4D Image")],
     t1_3d_path: Annotated[str, typer.Argument(help="Absolute path to the T1 3D Image")],
     output_dir: Annotated[str, typer.Argument(help="Absolute path to the directory (does not have to exist), where result will be stored")],
     type_of_transform: str = typer.Option("Rigid", "--transform", "-t", help="Choose Transformation Type (Rigid, Affine, SyN)", rich_help_panel="Transformation Types"),
@@ -74,15 +74,24 @@ def coregister_pet_and_mr(
     using ANTs to align it with the T1 image.
 
     Args:
-        pet_4d_path (str): Absolute path to the PET 4D image.
+        pet_path (str): Absolute path to the PET 3D or 4D image.
         t1_3d_path (str): Absolute path to the T1 3D image.
         output_dir (str): Directory to store the registration results.
         type_of_transform (str): Transformation type (Rigid, Affine, SyN). Defaults to "Rigid".
     """
+    # Check if the extensions are supported for a given task
+    if is_ext_supported(pet_path, 'registration'):
+        print(f"\n:x: Could not execute coregistration due to the invalid file extension for the PET image")
+    elif is_ext_supported(t1_3d_path, 'registration'):
+        print(f"\n:x: Could not execute coregistration due to the invalid file extension for the MR image")
+
+    # Get PETScope object
     petscope = get_petscope()
-    print(f"\n:fire: [bold yellow]Starting PET -> T1 ANTs {type_of_transform} Registration! :fire:")
+
+    # Start coregistration of the PET image to T1 image
+    print(f"\n:fire: [bold yellow]Starting Coregistration using ANTs {type_of_transform}! :fire:")
     error_code = petscope.coregister_pet_and_mr(
-        pet_4d_path=pet_4d_path,
+        pet_path=pet_path,
         t1_3d_path=t1_3d_path,
         type_of_transform=type_of_transform,
         output_dir=output_dir
@@ -102,7 +111,7 @@ def run_srtm(
         physical_space: str = typer.Option("MRI", "--space", "-s", help="Space for computation (MRI or PET)."),
         reference_region: str = typer.Option("WholeCerebellum", "--ref", "-r", help="Reference region (WholeCerebellum, WholeWhiteMatter)."),
         target_region: str = typer.Option(None, "--target", "-tar", help="Reference region (Hippocampus)."),
-        model: str = typer.Option("SRTMZhou2003", "--model", "-m", help="SRTM model to use."),
+        model: str = typer.Option(None, "--model", "-m", help="SRTM model to use (SRTMZhou2003)."),
         pvc_method: str = typer.Option(None, "--pvc_method", "-pvc", help="Partial Volume Correction method."),
         window_size: int = typer.Option(None, "--window_size", "-w", help="Window size for TAC smoothing."),
         polynomial_order: int = typer.Option(None, "--polyorder", "-p", help="Polynomial order for TAC smoothing."),
@@ -130,7 +139,7 @@ def run_srtm(
     # Perform a system check before running the pipeline
     system_check()
 
-    # Load PET settings from the JSON configuration
+    # Load PET settings from the JSON configuration and Validate
     pet_json = read_settings_json(pet_4d_path)
 
     # Initialize PETScope and execute the SRTM pipeline
