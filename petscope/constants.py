@@ -14,6 +14,14 @@ SUPPORTED_DYNAMICPET_MODELS = {
     "SRTMZhou2003"
 }
 
+# Suported k2prime estimation methods
+# ---------------------------
+# Defines list of k2prime estimation methods for 1st SRTM pass
+SUPPORTED_K2PRIME_METHODS = [
+    "voxel_wise",
+    "tac"
+]
+
 # Custom Pipeline constants
 # -------------------------
 # Defines dictionary for supported commands which can be used to create custom pipeline
