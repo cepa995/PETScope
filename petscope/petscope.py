@@ -5,7 +5,7 @@ from rich import print
 from petscope.constants import TARGET_REGIONS
 from typing import Dict, Any, List, Callable
 from petscope.constants import PVC_SUPPORTED_METHODS, MRI_PHYSICAL_SPACE, SUPPORTED_PHYSICAL_SPACES, \
-      SUPPORTED_REFERENCE_REGIONS, CUSTOM_PIPELINE_COMMAND_DICT
+      SUPPORTED_REFERENCE_REGIONS, CUSTOM_PIPELINE_COMMAND_DICT, SUPPORTED_DYNAMICPET_MODELS, SUPPORTED_K2PRIME_METHODS
 from petscope.dynamicpet_wrapper.srtm import call_srtm
 from petscope.registration import ants_registration, ants_warp_image
 from petscope.utils import compute_time_activity_curve, convert_4d_to_3d,\
@@ -223,7 +223,8 @@ class PETScope:
         pvc_method: str,
         window_size: int,
         polynomial_order: int,
-        pet_json: Dict[str, Any]
+        pet_json: Dict[str, Any],
+        k2prime_estimation_method: str='voxel_wise'
     ):
         """
         Executes the Simplified Reference Tissue Model (SRTM) pipeline on PET data.
@@ -250,6 +251,7 @@ class PETScope:
             window_size (int): Length of the window for Savitzky-Golay smoothing during TAC computation.
             polynomial_order (int): Polynomial order for Savitzky-Golay smoothing during TAC computation.
             pet_json (Dict[str, Any]): Dictionary containing PET metadata (e.g., frame times, durations).
+            k2prime_estimation_method (str): can be either 'voxel_wise' or 'tac'
 
         Returns:
             int: Returns 0 upon successful completion.
@@ -281,10 +283,15 @@ class PETScope:
             from petscope.exceptions import ReferenceRegionSupportException
             raise ReferenceRegionSupportException(f"Specified reference region - {reference_region} is NOT supported " + 
                                             f" . Please choose one of the following {SUPPORTED_REFERENCE_REGIONS}")
+        # Check which k2prime estimation method is provided
+        if k2prime_estimation_method not in ['voxel_wise', 'tac']:
+            from petscope.exceptions import K2PrimeEstimationMethodException
+            raise K2PrimeEstimationMethodException(f"Expected 'voxel_wise' or 'tac' got {k2prime_estimation_method} instead")
+        
         # Check if model argument is specified, in that case we rely on dynamicpet package (https://github.com/bilgelm/dynamicpet)
         if model and not check_if_model_is_supported(model):
-            from petscope.exceptions import DynmicPetWrapperException
-            raise DynmicPetWrapperException(f"Model {model} is not supported by dynamicpet. Please choose" + 
+            from petscope.exceptions import DynmicModelTypeException
+            raise DynmicModelTypeException(f"Model {model} is not supported by dynamicpet. Please choose" + 
                                             f" one of the following models {SUPPORTED_DYNAMICPET_MODELS}")
         print("\t:white_heavy_check_mark: [bold green]INPUTS ARE VALID!")
         
@@ -424,7 +431,8 @@ class PETScope:
                 template_path=template_pet_space_path if physical_space and physical_space != MRI_PHYSICAL_SPACE else template_path,
                 template_name=template,
                 roi_regions= target_regions,
-                reference_region=reference_region
+                reference_region=reference_region,
+                k2prime_method=k2prime_estimation_method
             )
         else:
             # Perform SRTM with dynamicpet

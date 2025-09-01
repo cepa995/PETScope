@@ -82,6 +82,14 @@ class SRTMDynamicPETException(Exception):
     """
     pass
 
+class DynmicModelTypeException(Exception):
+    """
+    Exception raised when model type is not recognized
+
+    This exception is triggered before input validation during run_srtm
+    when specified model type does not belong to SUPPORTED_DYNAMICPET_MODELS
+    """
+
 # PET Utilities Exceptions
 class SavitzkyGolaySmoothingException(Exception):
     """
@@ -193,3 +201,12 @@ class ReferenceRegionSupportException(Exception):
     used for partial volume correction that is not supported by the system.
     """
     pass
+
+# Custom SRTM Related Exeptions
+class K2PrimeEstimationMethodException(Exception):
+    """
+    Exception raised for unrecognized k2 prime estimation method
+
+    This exception is triggered when end-user specifies unrecognized
+    k2prime estimation method (voxel wise and tac are only ones supported)
+    """
