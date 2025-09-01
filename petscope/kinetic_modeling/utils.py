@@ -217,63 +217,25 @@ def prepare_rois(pet_data, brain_mask, roi_regions, template_path, template_name
     """
     if verbose:
         print("Preparing ROIs for k2prime estimation...")
-    
-    if roi_regions is None:
-        # Use late-frame activity instead of mean activity
-        # Take average of last 3 frames to identify high-binding regions
-        n_frames = pet_data.shape[3]
-        late_frames = max(3, n_frames // 4)  # Use last 25% of frames, minimum 3
-        late_activity = np.mean(pet_data[:, :, :, -late_frames:], axis=3)
+
+    # Use specified ROIs for k2prime estimation
+    roi_tacs = {}
+    for roi_name in roi_regions:
+        roi_mask_path = os.path.join(output_dir, f"{roi_name}_mask.nii.gz")
+        _ = get_target_region_mask(
+            template_path=template_path,
+            template_name=template_name,
+            target_name=roi_name,
+            mask_out=roi_mask_path
+        )
+        roi_mask_img = nib.load(roi_mask_path)
+        roi_mask_data = roi_mask_img.get_fdata() > 0
         
-        # Create initial mask excluding very low activity (potential CSF/edge artifacts)
-        masked_activity = late_activity * brain_mask
-        min_threshold = np.percentile(masked_activity[masked_activity > 0], 10)  # Exclude bottom 10%
-        viable_mask = (masked_activity > min_threshold) & brain_mask
-        
-        # Use 85th percentile instead of 90th for more conservative selection
-        threshold = np.percentile(masked_activity[viable_mask], 85)
-        high_binding_mask = (masked_activity > threshold) & viable_mask
-        
-        # Additional quality control - ensure minimum voxel count
-        min_voxels = 100  # Minimum voxels for reliable k2prime estimation
-        if np.sum(high_binding_mask) < min_voxels:
-            # Fall back to lower threshold if not enough voxels
-            threshold = np.percentile(masked_activity[viable_mask], 70)
-            high_binding_mask = (masked_activity > threshold) & viable_mask
-            if verbose:
-                print(f"  Warning: Lowered threshold to ensure minimum {min_voxels} voxels")
-        
-        # Save high-binding ROI mask
-        high_binding_mask_path = os.path.join(output_dir, "high_binding_mask.nii.gz")
-        high_binding_img = nib.Nifti1Image(high_binding_mask.astype(np.int16), affine, header)
-        nib.save(high_binding_img, high_binding_mask_path)
-        
-        # Extract mean TAC from high-binding regions
-        roi_tacs = {"high_binding": np.mean(pet_data[high_binding_mask], axis=0)}
+        # Extract mean TAC from ROI
+        roi_tacs[roi_name] = np.mean(pet_data[roi_mask_data], axis=0)
         
         if verbose:
-            print(f"  Selected high-binding regions: {np.sum(high_binding_mask)} voxels")
-            print(f"  Activity threshold: {threshold:.2f}")
-            print(f"  Mean late-frame activity in ROI: {np.mean(late_activity[high_binding_mask]):.2f}")
-    else:
-        # Use specified ROIs for k2prime estimation
-        roi_tacs = {}
-        for roi_name in roi_regions:
-            roi_mask_path = os.path.join(output_dir, f"{roi_name}_mask.nii.gz")
-            _ = get_target_region_mask(
-                template_path=template_path,
-                template_name=template_name,
-                target_name=roi_name,
-                mask_out=roi_mask_path
-            )
-            roi_mask_img = nib.load(roi_mask_path)
-            roi_mask_data = roi_mask_img.get_fdata() > 0
-            
-            # Extract mean TAC from ROI
-            roi_tacs[roi_name] = np.mean(pet_data[roi_mask_data], axis=0)
-            
-            if verbose:
-                print(f"  ROI: {roi_name}, voxel count: {np.sum(roi_mask_data)}")
+            print(f"  ROI: {roi_name}, voxel count: {np.sum(roi_mask_data)}")
     
     return {'roi_tacs': roi_tacs}
 
