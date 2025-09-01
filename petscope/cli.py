@@ -110,11 +110,12 @@ def run_srtm(
         template: str = typer.Option("FreeSurfer", "--tmpl", "-t", help="Template to use (e.g., FreeSurfer)."),
         physical_space: str = typer.Option("MRI", "--space", "-s", help="Space for computation (MRI or PET)."),
         reference_region: str = typer.Option("WholeCerebellum", "--ref", "-r", help="Reference region (WholeCerebellum, WholeWhiteMatter)."),
-        target_region: str = typer.Option(None, "--target", "-tar", help="Reference region (Hippocampus)."),
+        target_region: str = typer.Option(None, "--target", "-tar", help="Target region"),
         model: str = typer.Option(None, "--model", "-m", help="SRTM model to use (SRTMZhou2003)."),
         pvc_method: str = typer.Option(None, "--pvc_method", "-pvc", help="Partial Volume Correction method."),
         window_size: int = typer.Option(None, "--window_size", "-w", help="Window size for TAC smoothing."),
         polynomial_order: int = typer.Option(None, "--polyorder", "-p", help="Polynomial order for TAC smoothing."),
+        k2prime_estimation_method: str = typer.Option(None, "--k2prime_estimation_method", "-k2p", help="Method for k2 prime estimation during 1st SRTM pass ('voxel_wise', 'tac')."),
 ) -> None:
     """
     Runs the Simplified Reference Tissue Model (SRTM) Pipeline.
@@ -130,11 +131,12 @@ def run_srtm(
         template (str): Template to use (e.g., FreeSurfer). Defaults to "FreeSurfer".
         physical_space (str): Space for computation (MRI or PET). Defaults to "MRI".
         reference_region (str): Reference region to use. Defaults to "WholeCerebellum".
-        target_region (str): Target region to use. Defaults to "Hippocampus".
-        model (str): SRTM model to use. Defaults to "SRTMZhou2003".
+        target_region (str): Target region to use. By default the command will compute stats for all available target regions.
+        model (str): *IMPORTANT* This argument indicates use of https://github.com/bilgelm/dynamicpet. SRTM model to use. Defaults to "SRTMZhou2003".
         pvc_method (str, optional): Partial Volume Correction method. Defaults to None.
         window_size (int, optional): Window size for TAC smoothing. Defaults to None.
         polynomial_order (int, optional): Polynomial order for TAC smoothing. Defaults to None.
+        k2prime_estimation_method (str,optional): *IMPORTANT* This argument is for CUSTOM SRTM2 implementation only! Can be voxel_wise or tac
     """
     # Perform a system check before running the pipeline
     system_check()
@@ -158,7 +160,8 @@ def run_srtm(
         pvc_method=pvc_method,
         window_size=window_size,
         polynomial_order=polynomial_order,
-        pet_json=pet_json
+        pet_json=pet_json,
+        k2prime_estimation_method=k2prime_estimation_method
     )
     if error_code:
         print(":x: [bold red]SRTM Pipeline Was NOT Successful! ")
