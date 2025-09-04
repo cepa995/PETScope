@@ -18,8 +18,8 @@ SUPPORTED_DYNAMICPET_MODELS = {
 # ---------------------------
 # Defines list of k2prime estimation methods for 1st SRTM pass
 SUPPORTED_K2PRIME_METHODS = [
-    "voxel_wise",
-    "tac"
+    "voxel_based",
+    "tac_based"
 ]
 
 # Custom Pipeline constants

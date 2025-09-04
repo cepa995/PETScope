@@ -115,7 +115,7 @@ def run_srtm(
         pvc_method: str = typer.Option(None, "--pvc_method", "-pvc", help="Partial Volume Correction method."),
         window_size: int = typer.Option(None, "--window_size", "-w", help="Window size for TAC smoothing."),
         polynomial_order: int = typer.Option(None, "--polyorder", "-p", help="Polynomial order for TAC smoothing."),
-        k2prime_estimation_method: str = typer.Option(None, "--k2prime_estimation_method", "-k2p", help="Method for k2 prime estimation during 1st SRTM pass ('voxel_wise', 'tac')."),
+        k2prime_estimation_method: str = typer.Option("tac_based", "--k2prime_estimation_method", "-k2p", help="Method for k2 prime estimation during 1st SRTM pass ('voxel_based', 'tac_based')."),
 ) -> None:
     """
     Runs the Simplified Reference Tissue Model (SRTM) Pipeline.
@@ -136,7 +136,7 @@ def run_srtm(
         pvc_method (str, optional): Partial Volume Correction method. Defaults to None.
         window_size (int, optional): Window size for TAC smoothing. Defaults to None.
         polynomial_order (int, optional): Polynomial order for TAC smoothing. Defaults to None.
-        k2prime_estimation_method (str,optional): *IMPORTANT* This argument is for CUSTOM SRTM2 implementation only! Can be voxel_wise or tac
+        k2prime_estimation_method (str,optional): *IMPORTANT* This argument is for CUSTOM SRTM2 implementation only! Can be voxel_based or tac_based
     """
     # Perform a system check before running the pipeline
     system_check()

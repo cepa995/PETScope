@@ -224,7 +224,7 @@ class PETScope:
         window_size: int,
         polynomial_order: int,
         pet_json: Dict[str, Any],
-        k2prime_estimation_method: str='voxel_wise'
+        k2prime_estimation_method: str
     ):
         """
         Executes the Simplified Reference Tissue Model (SRTM) pipeline on PET data.
@@ -251,7 +251,7 @@ class PETScope:
             window_size (int): Length of the window for Savitzky-Golay smoothing during TAC computation.
             polynomial_order (int): Polynomial order for Savitzky-Golay smoothing during TAC computation.
             pet_json (Dict[str, Any]): Dictionary containing PET metadata (e.g., frame times, durations).
-            k2prime_estimation_method (str): can be either 'voxel_wise' or 'tac'
+            k2prime_estimation_method (str): can be either 'voxel_based' or 'tac_based'
 
         Returns:
             int: Returns 0 upon successful completion.
@@ -284,9 +284,9 @@ class PETScope:
             raise ReferenceRegionSupportException(f"Specified reference region - {reference_region} is NOT supported " + 
                                             f" . Please choose one of the following {SUPPORTED_REFERENCE_REGIONS}")
         # Check which k2prime estimation method is provided
-        if k2prime_estimation_method not in ['voxel_wise', 'tac']:
+        if k2prime_estimation_method not in SUPPORTED_K2PRIME_METHODS:
             from petscope.exceptions import K2PrimeEstimationMethodException
-            raise K2PrimeEstimationMethodException(f"Expected 'voxel_wise' or 'tac' got {k2prime_estimation_method} instead")
+            raise K2PrimeEstimationMethodException(f"Expected {SUPPORTED_K2PRIME_METHODS} got {k2prime_estimation_method} instead")
         
         # Check if model argument is specified, in that case we rely on dynamicpet package (https://github.com/bilgelm/dynamicpet)
         if model and not check_if_model_is_supported(model):
