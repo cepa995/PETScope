@@ -122,7 +122,7 @@ def compute_DVR_image(pet_file, output_dir, frame_durations, template_path, temp
         pet_info['affine'], 
         pet_info['header'], 
         output_dir, 
-        roi_info['roi_tacs'], 
+        roi_info['roi_tacs'] if k2prime_method == 'tac_based' else None, 
         k2prime_info['roi_results'], 
         k2prime_info['k2prime_values'], 
         k2prime_info['global_k2prime'], 

@@ -261,12 +261,7 @@ def prepare_roi_masks(brain_mask, roi_regions, template_path, template_name,
     if verbose:
         print("\nPreparing ROI masks for voxel-wise k2prime estimation...")
     
-    # This function would need to be implemented to load ROI masks
-    # from your template/atlas system. The exact implementation depends
-    # on your template format and naming conventions.
-    
     roi_masks = {}
-    
     for roi_name in roi_regions:
         if verbose:
             print(f"  Loading mask for {roi_name}...")
