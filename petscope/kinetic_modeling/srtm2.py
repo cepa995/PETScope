@@ -4,6 +4,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from rich import print
 from scipy.optimize import least_squares
+from scipy.interpolate import interp1d, UnivariateSpline
 from petscope.kinetic_modeling.utils import fix_multstartpars, kinfit_convolve, calculate_weights
 
 # Specific region bounds
@@ -97,28 +98,62 @@ def process_srtm2_output(result, modeldata, upper, lower, k2prime=None, verbose=
     
     return output
 
-def srtm2_model(t_tac, reftac, R1, k2prime, bp):
+def srtm2_model(t_tac, reftac, R1, k2prime, bp, interpolation_method='cubic', n_interp_points=512):
     """
-    Simplified Reference Tissue Model 2 (SRTM2)
-
+    Simplified Reference Tissue Model 2 (SRTM2) with improved interpolation
+    
     Arguments:
         t_tac (array_like): 1D array of time points (in minutes). (We use the time at mid‐frame.)
         reftac (array_like): 1D array of radioactivity concentrations in the reference tissue.
         R1 (float): Parameter R1.
         k2prime (float): Parameter k2prime.
         bp (float): Parameter bp.
-
+        interpolation_method (str): Interpolation method ('linear', 'cubic', 'exponential', 'spline')
+        n_interp_points (int): Number of interpolation points (default 512)
+        
     Returns:
         outtac (ndarray): 1D array of the predicted target tissue time-activity curve.
     """
-    # Reduce points if instability
-    interptime = np.linspace(np.min(t_tac), np.max(t_tac), 512)  
+    # Create interpolated time grid
+    interptime = np.linspace(np.min(t_tac), np.max(t_tac), n_interp_points)  
     step = interptime[1] - interptime[0]
 
     if step <= 0 or step < 1e-10:
         raise ValueError("Step size is too small!")
 
-    iref = np.interp(interptime, t_tac, reftac)
+    # Choose interpolation method
+    if interpolation_method == 'linear':
+        iref = np.interp(interptime, t_tac, reftac)
+        
+    elif interpolation_method == 'cubic':
+        # Cubic spline interpolation
+        if len(t_tac) < 4:
+            # Fall back to linear if insufficient points for cubic
+            iref = np.interp(interptime, t_tac, reftac)
+        else:
+            interp_func = interp1d(t_tac, reftac, kind='cubic', 
+                                 bounds_error=False, fill_value='extrapolate')
+            iref = interp_func(interptime)
+            
+    elif interpolation_method == 'exponential':
+        # Exponential interpolation - fit exponential decay between points
+        iref = exponential_interpolation(t_tac, reftac, interptime)
+        
+    elif interpolation_method == 'spline':
+        # Smoothing spline - automatically determines smoothness
+        if len(t_tac) < 4:
+            iref = np.interp(interptime, t_tac, reftac)
+        else:
+            spline = UnivariateSpline(t_tac, reftac, s=None)  # s=None for interpolating spline
+            iref = spline(interptime)
+            
+    else:
+        raise ValueError(f"Unknown interpolation method: {interpolation_method}")
+    
+    # Ensure no negative values (physiologically unrealistic)
+    iref = np.maximum(iref, 0)
+    
+    # SRTM2 calculations
     k2a = (R1 * k2prime) / (bp + 1)
     
     a = R1 * (k2prime - k2a) * iref
@@ -128,8 +163,92 @@ def srtm2_model(t_tac, reftac, R1, k2prime, bp):
     BOUND = kinfit_convolve(a, b, step)
     i_outtac = ND + BOUND
 
-    outtac = np.interp(t_tac, interptime, i_outtac)
+    # Interpolate back to original time points
+    if interpolation_method in ['cubic', 'spline'] and len(t_tac) >= 4:
+        # Use same method for back-interpolation
+        if interpolation_method == 'cubic':
+            back_interp = interp1d(interptime, i_outtac, kind='cubic',
+                                 bounds_error=False, fill_value='extrapolate')
+        else:  # spline
+            back_interp = UnivariateSpline(interptime, i_outtac, s=None)
+        outtac = back_interp(t_tac)
+    else:
+        # Linear back-interpolation for other methods or insufficient points
+        outtac = np.interp(t_tac, interptime, i_outtac)
+        
     return outtac
+
+
+def exponential_interpolation(t_orig, y_orig, t_new):
+    """
+    Exponential interpolation for PET TAC data
+    
+    Fits piecewise exponential functions between consecutive points,
+    which is more physiologically appropriate for tracer kinetics.
+    """
+    y_new = np.zeros_like(t_new)
+    
+    for i in range(len(t_new)):
+        t_target = t_new[i]
+        
+        # Find the interval containing t_target
+        if t_target <= t_orig[0]:
+            y_new[i] = y_orig[0]
+        elif t_target >= t_orig[-1]:
+            y_new[i] = y_orig[-1]
+        else:
+            # Find bracketing points
+            idx = np.searchsorted(t_orig, t_target) - 1
+            t1, t2 = t_orig[idx], t_orig[idx + 1]
+            y1, y2 = y_orig[idx], y_orig[idx + 1]
+            
+            # Handle edge cases
+            if y1 <= 0 or y2 <= 0:
+                # Fall back to linear interpolation for non-positive values
+                alpha = (t_target - t1) / (t2 - t1)
+                y_new[i] = y1 + alpha * (y2 - y1)
+            else:
+                # Exponential interpolation: y = y1 * exp(k * (t - t1))
+                # where k = ln(y2/y1) / (t2 - t1)
+                if abs(y2 - y1) < 1e-10:  # Nearly constant
+                    y_new[i] = y1
+                else:
+                    k = np.log(y2 / y1) / (t2 - t1)
+                    y_new[i] = y1 * np.exp(k * (t_target - t1))
+    
+    return y_new
+
+def adaptive_interpolation_points(t_tac, base_points=256, max_points=1024):
+    """
+    Adaptively determine number of interpolation points based on scan characteristics
+    
+    Arguments:
+        t_tac: Original time points
+        base_points: Minimum number of points
+        max_points: Maximum number of points
+        
+    Returns:
+        n_points: Optimal number of interpolation points
+    """
+    scan_duration = t_tac[-1] - t_tac[0]
+    n_orig_points = len(t_tac)
+    
+    # More points for longer scans or sparser original sampling
+    density_factor = scan_duration / n_orig_points
+    n_points = int(base_points * (1 + density_factor / 10))
+    
+    return min(max_points, max(base_points, n_points))
+
+
+def srtm2_model_adaptive(t_tac, reftac, R1, k2prime, bp, interpolation_method='cubic'):
+    """
+    SRTM2 model with adaptive interpolation point selection
+    """
+    n_interp = adaptive_interpolation_points(t_tac)
+    return srtm2_model(t_tac, reftac, R1, k2prime, bp, 
+                      interpolation_method=interpolation_method,
+                      n_interp_points=n_interp)
+
 
 def fit_srtm2_model(modeldata, start, lower, upper, weights,
                     multstart_iter, multstart_lower, multstart_upper,
@@ -204,7 +323,7 @@ def fit_srtm2_model(modeldata, start, lower, upper, weights,
                 R1, bp = params
                 k2prime = k2prime_fixed
             
-            model_pred = srtm2_model(t_tac, reftac, R1, k2prime, bp)
+            model_pred = srtm2_model_adaptive(t_tac, reftac, R1, k2prime, bp, 'linear')
             residuals_arr = (model_pred - roitac) * weights
             
             # Check for invalid results

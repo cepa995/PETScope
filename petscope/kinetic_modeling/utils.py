@@ -329,22 +329,23 @@ def save_results(parametric_images, affine, header, output_dir, roi_tacs, roi_re
     nib.save(k2a_nii, k2a_path)
     
     # Save k2prime value as a text file
-    with open(os.path.join(output_dir, 'srtm2_k2prime.txt'), 'w') as f:
-        f.write(f"Global k2prime: {global_k2prime}\n")
-        for roi_name, k2prime_val in zip(roi_tacs.keys(), k2prime_values):
-            f.write(f"{roi_name}: {k2prime_val}\n")
+    if roi_tacs != None:
+        with open(os.path.join(output_dir, 'srtm2_k2prime.txt'), 'w') as f:
+            f.write(f"Global k2prime: {global_k2prime}\n")
+            for roi_name, k2prime_val in zip(roi_tacs.keys(), k2prime_values):
+                f.write(f"{roi_name}: {k2prime_val}\n")
     
-    # Save ROI results to CSV
-    roi_tacs = {k:v for k,v in roi_tacs.items() if k in roi_results} # In case some k2 prime is below given threshold we have to EXCLUDE the TAC for that ROI
-    roi_results_df = pd.DataFrame({
-        'ROI': list(roi_tacs.keys()),
-        'R1': [roi_results[roi]['par']['R1'].values[0] for roi in roi_tacs.keys()],
-        'k2prime': [roi_results[roi]['par']['k2prime'].values[0] for roi in roi_tacs.keys()],
-        'BP': [roi_results[roi]['par']['bp'].values[0] for roi in roi_tacs.keys()],
-        'DVR': [roi_results[roi]['par']['bp'].values[0] + 1.0 for roi in roi_tacs.keys()],
-    })
-    roi_results_df.to_csv(os.path.join(output_dir, 'srtm2_roi_results.csv'), index=False)
-    
+        # Save ROI results to CSV
+        roi_tacs = {k:v for k,v in roi_tacs.items() if k in roi_results} # In case some k2 prime is below given threshold we have to EXCLUDE the TAC for that ROI
+        roi_results_df = pd.DataFrame({
+            'ROI': list(roi_tacs.keys()),
+            'R1': [roi_results[roi]['par']['R1'].values[0] for roi in roi_tacs.keys()],
+            'k2prime': [roi_results[roi]['par']['k2prime'].values[0] for roi in roi_tacs.keys()],
+            'BP': [roi_results[roi]['par']['bp'].values[0] for roi in roi_tacs.keys()],
+            'DVR': [roi_results[roi]['par']['bp'].values[0] + 1.0 for roi in roi_tacs.keys()],
+        })
+        roi_results_df.to_csv(os.path.join(output_dir, 'srtm2_roi_results.csv'), index=False)
+        
     if verbose:
         print(f"Files saved:")
         print(f"  - DVR image: {dvr_path}")
@@ -479,6 +480,7 @@ def diagnostic_plots(parametric_images, global_k2prime, roi_results, output_dir,
     plt.colorbar(im2, ax=axes[1, 1])
     
     # 6. k2prime values from ROIs
+    print(roi_results)
     if roi_results:
         roi_names = list(roi_results.keys())
         k2prime_vals = [roi_results[roi]['par']['k2prime'].values[0] for roi in roi_names]
